@@ -92,7 +92,35 @@ local SilentAimSettings = {
     ThreeLineCrosshairEnabled = true,
     ThreeLineCrosshairLength = 30,
     ThreeLineCrosshairGap = 5,
-    TargetMode = "所有"
+    TargetMode = "所有",
+    -- ===== 自动扳机 =====
+    TriggerbotEnabled = false,
+    TriggerbotCPS = 10,
+    ShowMobileTriggerButton = false,
+    MobileTriggerButtonPosition = "0,0",
+    MobileTriggerButtonPinned = false,
+    TriggerbotButtonSize = 65,
+    TriggerbotOffsetX = 0,
+    TriggerbotOffsetY = 0,
+    ShowClickDebug = false,
+    -- ===== 杂项 =====
+    AA_Enabled = false,
+    AA_UpsideDown = false,
+    AA_Yaw = "Backward",
+    AA_Jitter = 90,
+    Desync_Enabled = false,
+    Desync_Ticks = 3,
+    Desync_Visualize = false,
+    Desync_Color = Color3.fromRGB(255, 85, 255),
+    CharMaterialMode = "ForceField",
+    AutoBhopEnabled = false,
+    BhopBoostAmount = 0,
+    ShowMobileBhopButton = false,
+    MobileBhopButtonPosition = "0,0",
+    MobileBhopButtonPinned = false,
+    RadarEnabled = false,
+    RadarRange = 200,
+    RadarSize = 150,
 }
 
 getgenv().SilentAimSettings = SilentAimSettings
@@ -189,6 +217,8 @@ local targetMap = {}
 local recentShots = {}
 local pendingDamage = {}
 local lockedTargetObject = nil
+local lastTriggerTime = 0
+local aaRotation = 0
 
 -- ===== 完全移除 Drawing，全部改用 GUI =====
 
@@ -227,7 +257,7 @@ IndicatorCorner.Name = "Corner"
 IndicatorCorner.CornerRadius = UDim.new(1, 0)
 
 -- 追踪线 GUI
-local TracerLine = Instance.new("Frame", TargetIndicatorGui)  -- 放在同一个 GUI 里
+local TracerLine = Instance.new("Frame", TargetIndicatorGui)
 TracerLine.Name = "TracerLine"
 TracerLine.AnchorPoint = Vector2.new(0.5, 0.5)
 TracerLine.Size = UDim2.new(0, 1, 0, 2)
@@ -304,6 +334,38 @@ for i, name in ipairs({"Name", "Health", "Distance", "Category"}) do
 end
 IndependentPanelFrame.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 and IndependentPanelFrame.Draggable then IndependentPanelFrame.Position = UDim2.fromOffset(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) end end)
 IndependentPanelFrame.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 and IndependentPanelFrame.Draggable then SilentAimSettings.IndependentPanelPosition = IndependentPanelFrame.Position.X.Offset .. "," .. IndependentPanelFrame.Position.Y.Offset end end)
+
+-- ===== 雷达图 GUI =====
+local RadarGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+RadarGui.Name = "RadarGui"
+RadarGui.ResetOnSpawn = false
+RadarGui.IgnoreGuiInset = true
+RadarGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+RadarGui.Enabled = false
+
+local RadarBG = Instance.new("Frame", RadarGui)
+RadarBG.Name = "RadarBG"
+RadarBG.AnchorPoint = Vector2.new(0.5, 0.5)
+RadarBG.Position = UDim2.fromScale(0.5, 0.5)
+RadarBG.Size = UDim2.fromOffset(SilentAimSettings.RadarSize, SilentAimSettings.RadarSize)
+RadarBG.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+RadarBG.BackgroundTransparency = 0.4
+RadarBG.BorderSizePixel = 2
+RadarBG.BorderColor3 = Color3.fromRGB(255, 255, 255)
+RadarBG.Visible = false
+local RadarCorner = Instance.new("UICorner", RadarBG)
+RadarCorner.CornerRadius = UDim.new(0, 4)
+
+local RadarCenter = Instance.new("Frame", RadarBG)
+RadarCenter.Name = "RadarCenter"
+RadarCenter.AnchorPoint = Vector2.new(0.5, 0.5)
+RadarCenter.Position = UDim2.fromScale(0.5, 0.5)
+RadarCenter.Size = UDim2.fromOffset(4, 4)
+RadarCenter.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+RadarCenter.BackgroundTransparency = 0
+Instance.new("UICorner", RadarCenter).CornerRadius = UDim.new(1, 0)
+
+local radarBlips = {}
 
 local ExpectedArguments = {
     FindPartOnRayWithIgnoreList = { ArgCountRequired = 3, Args = {"Instance", "Ray", "table", "boolean", "boolean"} },
@@ -548,6 +610,8 @@ local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 
 local Options = Library.Options
 local Toggles = Library.Toggles
+-- ★ 修复：将 Toggles 暴露到全局，供移动端按钮事件使用
+getgenv().Toggles = Toggles
 
 local Window = Library:CreateWindow({ Title = "nb666", Footer = "1.3", Center = true, AutoShow = true })
 
@@ -556,9 +620,11 @@ local Tabs = {
     Visuals = Window:AddTab("视觉", "camera"),
     Management = Window:AddTab("管理", "users"),
     Misc = Window:AddTab("杂项", "box"),
+    ESP = Window:AddTab("ESP", "scan"),
     ["UI Settings"] = Window:AddTab("设置", "settings"),
 }
 
+-- ===== 主页 (Main) =====
 local MainSettingsBox = Tabs.Main:AddLeftGroupbox("主设置")
 MainSettingsBox:AddToggle("EnabledToggle", { Text = "启用", Default = SilentAimSettings.Enabled }):AddKeyPicker("EnabledKeybind", { Default = SilentAimSettings.ToggleKey, SyncToggleState = true, Mode = "Toggle" })
 Toggles.EnabledToggle:OnChanged(function(Value) SilentAimSettings.Enabled = Value end)
@@ -581,6 +647,134 @@ MethodBox:AddSlider("PredictionAmountSlider", { Text = "预判量", Min = 0, Max
 MethodBox:AddToggle("HeadshotChanceToggle", { Text = "启用爆头几率", Default = SilentAimSettings.HeadshotChanceEnabled }):OnChanged(function(Value) SilentAimSettings.HeadshotChanceEnabled = Value end)
 MethodBox:AddSlider('HeadshotChanceSlider', { Text = '爆头概率', Default = SilentAimSettings.HeadshotChance, Min = 0, Max = 100, Rounding = 1, Suffix = "%" }):OnChanged(function(Value) SilentAimSettings.HeadshotChance = Value end)
 
+-- ===== 自动扳机 (Triggerbot) =====
+local TriggerbotBox = Tabs.Main:AddLeftGroupbox("自动扳机 (Triggerbot)")
+local MobileTriggerGui, MobileTriggerButton, MTStroke, ClickDebugDot  -- 声明，稍后创建
+TriggerbotBox:AddToggle("TriggerbotToggle", { Text = "启用自动扳机", Default = SilentAimSettings.TriggerbotEnabled }):OnChanged(function(Value)
+    SilentAimSettings.TriggerbotEnabled = Value
+    if MobileTriggerButton then
+        if Value then
+            MobileTriggerButton.Text = "自动扳机\n[开]"
+            MobileTriggerButton.TextColor3 = Color3.fromRGB(50, 255, 50)
+            MTStroke.Color = Color3.fromRGB(50, 255, 50)
+        else
+            MobileTriggerButton.Text = "自动扳机\n[关]"
+            MobileTriggerButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+            MTStroke.Color = Color3.fromRGB(255, 80, 80)
+        end
+    end
+end)
+TriggerbotBox:AddSlider("TriggerbotCPSSlider", { Text = "点击频率 (CPS)", Min = 1, Max = 20, Default = SilentAimSettings.TriggerbotCPS, Rounding = 0 }):OnChanged(function(Value)
+    SilentAimSettings.TriggerbotCPS = Value
+end)
+TriggerbotBox:AddToggle("ShowMobileTriggerButton", { Text = "显示移动端按钮", Default = SilentAimSettings.ShowMobileTriggerButton }):OnChanged(function(Value)
+    SilentAimSettings.ShowMobileTriggerButton = Value
+    if MobileTriggerButton then MobileTriggerButton.Visible = Value end
+end)
+TriggerbotBox:AddSlider("TriggerbotButtonSizeSlider", { Text = "按钮大小", Min = 40, Max = 150, Default = SilentAimSettings.TriggerbotButtonSize, Rounding = 0 }):OnChanged(function(Value)
+    SilentAimSettings.TriggerbotButtonSize = Value
+    if MobileTriggerButton then MobileTriggerButton.Size = UDim2.fromOffset(Value, Value) end
+end)
+TriggerbotBox:AddToggle("PinMobileTriggerButton", { Text = "锁定按钮位置", Default = SilentAimSettings.MobileTriggerButtonPinned }):OnChanged(function(Value)
+    SilentAimSettings.MobileTriggerButtonPinned = Value
+end)
+TriggerbotBox:AddButton("重置按钮位置 (居中)", function()
+    local screenSize = Camera.ViewportSize
+    local newX = math.floor(screenSize.X / 2)
+    local newY = math.floor(screenSize.Y / 2)
+    if MobileTriggerButton then
+        MobileTriggerButton.Position = UDim2.fromOffset(newX, newY)
+        SilentAimSettings.MobileTriggerButtonPosition = newX .. "," .. newY
+    end
+end)
+TriggerbotBox:AddSlider("TriggerClickOffsetX", { Text = "点击X轴偏移 (微调)", Min = -500, Max = 500, Default = SilentAimSettings.TriggerbotOffsetX, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotOffsetX = Value end)
+TriggerbotBox:AddSlider("TriggerClickOffsetY", { Text = "点击Y轴偏移 (微调)", Min = -500, Max = 500, Default = SilentAimSettings.TriggerbotOffsetY, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotOffsetY = Value end)
+TriggerbotBox:AddToggle("ShowClickDebug", { Text = "显示实际点击位置 (红点)", Default = SilentAimSettings.ShowClickDebug }):OnChanged(function(Value) SilentAimSettings.ShowClickDebug = Value end)
+
+-- 创建移动端按钮（在 UI 库加载后）
+do
+    MobileTriggerGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    MobileTriggerGui.Name = "MobileTriggerGui"
+    MobileTriggerGui.ResetOnSpawn = false
+    MobileTriggerGui.IgnoreGuiInset = true
+    MobileTriggerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    MobileTriggerButton = Instance.new("TextButton", MobileTriggerGui)
+    MobileTriggerButton.Name = "TriggerButton"
+    MobileTriggerButton.AnchorPoint = Vector2.new(0.5, 0.5)
+    MobileTriggerButton.Size = UDim2.fromOffset(SilentAimSettings.TriggerbotButtonSize, SilentAimSettings.TriggerbotButtonSize)
+    MobileTriggerButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    MobileTriggerButton.BackgroundTransparency = 0.2
+    MobileTriggerButton.BorderSizePixel = 0
+    MobileTriggerButton.Text = "自动扳机\n[关]"
+    MobileTriggerButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+    MobileTriggerButton.Font = Enum.Font.GothamBold
+    MobileTriggerButton.TextSize = 13
+    MobileTriggerButton.Visible = false
+    MobileTriggerButton.Active = true
+
+    local MTCorner = Instance.new("UICorner", MobileTriggerButton)
+    MTCorner.CornerRadius = UDim.new(0, 12)
+
+    MTStroke = Instance.new("UIStroke", MobileTriggerButton)
+    MTStroke.Color = Color3.fromRGB(255, 80, 80)
+    MTStroke.Thickness = 2
+    MTStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    -- 拖动逻辑
+    local isDraggingTrigger = false
+    local dragInputTrigger, dragStartTrigger, startPosTrigger
+
+    MobileTriggerButton.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            if not SilentAimSettings.MobileTriggerButtonPinned then
+                isDraggingTrigger = true
+                dragStartTrigger = input.Position
+                startPosTrigger = MobileTriggerButton.Position
+            end
+        end
+    end)
+
+    MobileTriggerButton.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInputTrigger = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInputTrigger and isDraggingTrigger then
+            local delta = input.Position - dragStartTrigger
+            MobileTriggerButton.Position = UDim2.new(startPosTrigger.X.Scale, startPosTrigger.X.Offset + delta.X, startPosTrigger.Y.Scale, startPosTrigger.Y.Offset + delta.Y)
+        end
+    end)
+
+    MobileTriggerButton.InputEnded:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStartTrigger
+            if isDraggingTrigger then
+                isDraggingTrigger = false
+                SilentAimSettings.MobileTriggerButtonPosition = MobileTriggerButton.Position.X.Offset .. "," .. MobileTriggerButton.Position.Y.Offset
+            end
+            if delta and delta.Magnitude < 10 then
+                -- 使用 getgenv().Toggles 切换
+                if getgenv().Toggles and getgenv().Toggles.TriggerbotToggle then
+                    getgenv().Toggles.TriggerbotToggle:SetValue(not getgenv().Toggles.TriggerbotToggle.Value)
+                end
+            end
+        end
+    end)
+
+    ClickDebugDot = Instance.new("Frame", MobileTriggerGui)
+    ClickDebugDot.Name = "ClickDebugDot"
+    ClickDebugDot.Size = UDim2.fromOffset(8, 8)
+    ClickDebugDot.AnchorPoint = Vector2.new(0.5, 0.5)
+    ClickDebugDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    ClickDebugDot.ZIndex = 9999
+    Instance.new("UICorner", ClickDebugDot).CornerRadius = UDim.new(1, 0)
+    ClickDebugDot.Visible = false
+end
+
+-- ===== 视觉 (Visuals) =====
 local FovIndicatorBox = Tabs.Visuals:AddLeftGroupbox("范围与指示器")
 FovIndicatorBox:AddToggle("FOVVisibleToggle", { Text = "显示FOV圈", Default = SilentAimSettings.FOVVisible }):AddColorPicker("FOVColorPicker", { Default = Color3.fromRGB(54, 57, 241), Title = "FOV圈颜色" })
 Toggles.FOVVisibleToggle:OnChanged(function(Value) FOVCircleGui.Enabled = Value; SilentAimSettings.FOVVisible = Value end)
@@ -634,6 +828,7 @@ Toggles.ShowTracerToggle:OnChanged(function(Value) SilentAimSettings.ShowTracer 
 Options.TracerColorPicker:OnChanged(function(Value) TracerLine.BackgroundColor3 = Value end)
 ExtrasBox:AddSlider('TracerYOffsetSlider', { Text = '追踪线Y轴偏移', Default = SilentAimSettings.Tracer_Y_Offset, Min = -10, Max = 10, Rounding = 3, Suffix = " studs" }):OnChanged(function(Value) SilentAimSettings.Tracer_Y_Offset = Value end)
 
+-- ===== 管理 (Management) =====
 local ManualLockGroupBox = Tabs.Management:AddLeftGroupbox("手动锁定")
 ManualLockGroupBox:AddDropdown("TargetSelectorDropdown", { Text = "锁定目标 (无=自动)", Default = "无", Values = {"无"} }):OnChanged(function(selectedName)
     if selectedName == "无" then
@@ -778,6 +973,7 @@ blacklistDataOption:OnChanged(function(jsonString)
     end
 end)
 
+-- ===== 杂项 (Misc) - 完整迁移自 2.1.3 =====
 local CharacterModGroup = Tabs.Misc:AddLeftGroupbox("角色修改")
 local originalCharacterData = {}
 local transparencyLoopConnection = nil
@@ -787,37 +983,116 @@ local function restoreCharacterAppearance()
             part.Material = data.material
             part.Color = data.color
             part.Transparency = data.transparency
+            if part:IsA("BasePart") then
+                part.Reflectance = data.reflectance or 0
+                if data.TextureID then
+                    part.TextureID = data.TextureID
+                end
+                part:SetAttribute("WaterTextureActive", nil)
+            end
         end
     end
     originalCharacterData = {}
 end
+
+local function getDynamicColor(mode, c1, c2, speed)
+    if mode == "单色" then return c1 end
+    if mode == "彩虹" then return Color3.fromHSV((tick() * speed * 0.1) % 1, 1, 1) end
+    if mode == "渐变" then
+        local t = (math.sin(tick() * speed) + 1) / 2
+        return c1:Lerp(c2, t)
+    end
+    return c1
+end
+
 local function transparencyLoop()
     if not LocalPlayer.Character then
         if next(originalCharacterData) then
-            originalCharacterData = {}
+             originalCharacterData = {}
         end
         return
     end
-    local isRainbowEnabled = Toggles.TransparentCharacterRainbow.Value
+    local colorMode = Options.CharColorModeDropdown.Value
+    local dynColor = getDynamicColor(colorMode, Options.CharColorPicker.Value, Options.CharColorPicker2.Value, Options.CharGradientSpeedSlider.Value)
+    local matMode = SilentAimSettings.CharMaterialMode
+    local tickTime = tick()
+
     for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-        if part:IsA("BasePart") then
+        if part:IsA("BasePart") and not part.Parent:IsA("Accessory") then
+            local isMeshPart = part:IsA("MeshPart") or part:IsA("UnionOperation")
+            
             if not originalCharacterData[part] then
                 originalCharacterData[part] = {
                     material = part.Material,
                     color = part.Color,
-                    transparency = part.Transparency
+                    transparency = part.Transparency,
+                    reflectance = part.Reflectance,
+                    TextureID = isMeshPart and part.TextureID or nil
                 }
             end
-            part.Material = Enum.Material.ForceField
-            if isRainbowEnabled then
-                part.Color = rainbowColor
-            else
+
+            if matMode ~= "Water" and isMeshPart and part:GetAttribute("WaterTextureActive") then
+                part.TextureID = originalCharacterData[part].TextureID or ""
+                part:SetAttribute("WaterTextureActive", nil)
+            end
+            
+            if matMode == "ForceField" then
+                part.Material = Enum.Material.ForceField
+                part.Reflectance = 0
+                part.Transparency = 0
+            elseif matMode == "Neon" then
+                part.Material = Enum.Material.Neon
+                part.Reflectance = 0
+                part.Transparency = 0
+            elseif matMode == "Glass" then
+                part.Material = Enum.Material.Glass
+                part.Transparency = 0.55
+                part.Reflectance = 0
+            elseif matMode == "SmoothPlastic" then
+                part.Material = Enum.Material.SmoothPlastic
+                part.Reflectance = 0
+                part.Transparency = 0
+            elseif matMode == "ForceOverlay" then
+                part.Material = Enum.Material.Plastic
+                part.Reflectance = 999999
+                part.Transparency = 0
+            elseif matMode == "Pulse" then
+                part.Material = Enum.Material.Neon
+                part.Transparency = (math.sin(tickTime * 3) + 1) / 2
+                part.Reflectance = 0
+            elseif matMode == "Tween" then
+                part.Material = Enum.Material.ForceField
+                part.Reflectance = 0
+                part.Transparency = 0
+                local t = (math.sin(tickTime * 3) + 1) / 2
+                dynColor = dynColor:Lerp(Color3.fromRGB(255, 255, 255), t)
+            elseif matMode == "Water" then
+                part.Material = Enum.Material.ForceField
+                part.Transparency = 0
+                if isMeshPart then
+                    local textureIndex = math.floor((tickTime * 12) % 25) + 1
+                    part.TextureID = string.format("rbxasset://textures/water/normal_%02d.dds", textureIndex)
+                    part:SetAttribute("WaterTextureActive", true)
+                end
+            elseif matMode == "原版" then
+                part.Material = originalCharacterData[part].material
+                part.Reflectance = originalCharacterData[part].reflectance
+                part.Transparency = originalCharacterData[part].transparency
+            end
+            
+            if colorMode == "原色" and matMode ~= "Tween" then
                 part.Color = originalCharacterData[part].color
+            else
+                part.Color = dynColor
             end
         end
     end
 end
-CharacterModGroup:AddToggle("TransparentCharacterEnabled", { Text = "人物透明", Default = false }):OnChanged(function(value)
+
+CharacterModGroup:AddToggle("TransparentCharacterEnabled", { Text = "开启人物外观修改", Default = false })
+    :AddColorPicker("CharColorPicker", { Default = Color3.fromRGB(255,255,255), Title = "颜色1" })
+    :AddColorPicker("CharColorPicker2", { Default = Color3.fromRGB(0,0,0), Title = "颜色2" })
+Toggles.TransparentCharacterEnabled:OnChanged(function(value)
     if value then
         transparencyLoopConnection = RunService.Heartbeat:Connect(transparencyLoop)
     else
@@ -828,8 +1103,17 @@ CharacterModGroup:AddToggle("TransparentCharacterEnabled", { Text = "人物透�
         restoreCharacterAppearance()
     end
 end)
-CharacterModGroup:AddToggle("TransparentCharacterRainbow", { Text = "人物变色", Default = false }):OnChanged(function(value)
-    if not value and Toggles.TransparentCharacterEnabled.Value then
+CharacterModGroup:AddDropdown("CharColorModeDropdown", { Text = "人物颜色模式", Default = "原色", Values = {"原色", "单色", "彩虹", "渐变"} }):OnChanged(function(value)
+    if Toggles.TransparentCharacterEnabled.Value then
+        restoreCharacterAppearance()
+        task.wait()
+        transparencyLoop()
+    end
+end)
+CharacterModGroup:AddSlider("CharGradientSpeedSlider", { Text = "人物变色速度", Min = 0.1, Max = 10, Default = 3, Rounding = 1 })
+CharacterModGroup:AddDropdown("CharMaterialDropdown", { Text = "材质", Default = "ForceField", Values = {"原版", "Pulse", "ForceField", "Neon", "Glass", "Tween", "SmoothPlastic", "ForceOverlay", "Water"} }):OnChanged(function(value)
+    SilentAimSettings.CharMaterialMode = value
+    if Toggles.TransparentCharacterEnabled.Value then
         restoreCharacterAppearance()
         task.wait()
         transparencyLoop()
@@ -863,22 +1147,671 @@ EntertainmentGroup:AddSlider("SpinSpeedSlider", { Text = "旋转速度", Default
     spinSpeed = math.rad(value)
 end)
 
+local MovementTabbox = Tabs.Misc:AddRightTabbox()
+local AATab = MovementTabbox:AddTab("反自瞄 (AA)")
+local DesyncTab = MovementTabbox:AddTab("网络同步")
+local BhopTab = MovementTabbox:AddTab("移动身法")
+
+-- AA
+AATab:AddToggle("AAToggle", { Text = "启用反自瞄", Default = SilentAimSettings.AA_Enabled }):OnChanged(function(Value)
+    SilentAimSettings.AA_Enabled = Value
+end)
+AATab:AddToggle("AAUpsideDown", { Text = "倒立 (Upside Down)", Default = SilentAimSettings.AA_UpsideDown }):OnChanged(function(Value)
+    SilentAimSettings.AA_UpsideDown = Value
+end)
+AATab:AddDropdown("AAYaw", { Text = "Yaw 偏航模式", Default = SilentAimSettings.AA_Yaw, Values = {"Backward", "Spin", "Jitter", "Freestanding"} }):OnChanged(function(Value)
+    SilentAimSettings.AA_Yaw = Value
+end)
+AATab:AddSlider("AAJitter", { Text = "Jitter 角度 / Spin 速度", Min = 0, Max = 180, Default = SilentAimSettings.AA_Jitter, Rounding = 0 }):OnChanged(function(Value)
+    SilentAimSettings.AA_Jitter = Value
+end)
+
+-- Desync
+DesyncTab:AddToggle("DesyncToggle", { Text = "启用断步 (Desync)", Default = SilentAimSettings.Desync_Enabled }):OnChanged(function(Value)
+    SilentAimSettings.Desync_Enabled = Value
+end)
+DesyncTab:AddSlider("DesyncTicksSlider", { Text = "Desync Ticks (频率)", Min = 1, Max = 5000, Default = SilentAimSettings.Desync_Ticks, Rounding = 0 }):OnChanged(function(Value)
+    SilentAimSettings.Desync_Ticks = Value
+end)
+DesyncTab:AddToggle("DesyncVisToggle", { Text = "显示虚假残影", Default = SilentAimSettings.Desync_Visualize }):AddColorPicker("DesyncVisColor", { Default = SilentAimSettings.Desync_Color, Title = "残影颜色" })
+Toggles.DesyncVisToggle:OnChanged(function(Value) SilentAimSettings.Desync_Visualize = Value end)
+Options.DesyncVisColor:OnChanged(function(Value) SilentAimSettings.Desync_Color = Value end)
+
+-- Bhop
+BhopTab:AddToggle("AutoBhopToggle", { Text = "启用自动连跳", Default = SilentAimSettings.AutoBhopEnabled }):OnChanged(function(value)
+    SilentAimSettings.AutoBhopEnabled = value
+    if value then
+        MobileBhopButton.Text = "自动连跳\n[开]"
+        MobileBhopButton.TextColor3 = Color3.fromRGB(50, 255, 50)
+        MBHStroke.Color = Color3.fromRGB(50, 255, 50)
+    else
+        MobileBhopButton.Text = "自动连跳\n[关]"
+        MobileBhopButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+        MBHStroke.Color = Color3.fromRGB(255, 80, 80)
+    end
+end)
+BhopTab:AddSlider("BhopBoostSlider", { Text = "连跳空中加速力度", Default = 0, Min = 0, Max = 100, Rounding = 0 }):OnChanged(function(value)
+    SilentAimSettings.BhopBoostAmount = value
+end)
+BhopTab:AddToggle("ShowMobileBhopButton", { Text = "显示连跳悬浮窗 (移动端)", Default = SilentAimSettings.ShowMobileBhopButton }):OnChanged(function(Value)
+    SilentAimSettings.ShowMobileBhopButton = Value
+    MobileBhopButton.Visible = Value
+end)
+BhopTab:AddToggle("PinMobileBhopButton", { Text = "锁定连跳按钮位置", Default = SilentAimSettings.MobileBhopButtonPinned }):OnChanged(function(Value)
+    SilentAimSettings.MobileBhopButtonPinned = Value
+end)
+BhopTab:AddButton("重置连跳按钮位置 (居中偏右)", function()
+    local screenSize = Camera.ViewportSize
+    local newX = math.floor(screenSize.X / 2 + 80)
+    local newY = math.floor(screenSize.Y / 2)
+    MobileBhopButton.Position = UDim2.fromOffset(newX, newY)
+    SilentAimSettings.MobileBhopButtonPosition = newX .. "," .. newY
+end)
+
+-- Radar
+local RadarGroup = Tabs.Misc:AddRightGroupbox("雷达图 (Radar Beta)")
+RadarGroup:AddToggle("RadarEnabled", { Text = "显示雷达图", Default = false }):OnChanged(function(v) 
+    SilentAimSettings.RadarEnabled = v 
+    if not v and RadarBG then RadarBG.Visible = false end
+    RadarGui.Enabled = v
+end)
+RadarGroup:AddSlider("RadarScale", { Text = "雷达探测范围", Min = 50, Max = 1000, Default = 200, Rounding = 0 }):OnChanged(function(v) SilentAimSettings.RadarRange = v end)
+RadarGroup:AddSlider("RadarSize", { Text = "雷达窗口大小", Min = 100, Max = 300, Default = 150, Rounding = 0 }):OnChanged(function(v) 
+    SilentAimSettings.RadarSize = v
+    if RadarBG then RadarBG.Size = UDim2.fromOffset(v, v) end 
+end)
+
+-- ===== 天空盒 (修复下拉过长) =====
 local SkyboxGroup = Tabs.Misc:AddRightGroupbox("天空盒")
+local function getShortSkyboxList()
+    local short = {}
+    for i, name in ipairs(SkyboxNames) do
+        if i <= 8 then table.insert(short, name) end
+    end
+    return short
+end
+
 SkyboxGroup:AddDropdown("SkyboxSelector", {
     AllowNull = false,
-    Text = "选择天空盒",
+    Text = "快速选择 (前8个)",
     Default = "Game's Default Sky",
-    Values = SkyboxNames
+    Values = getShortSkyboxList()
 }):OnChanged(function(SelectedSkybox)
     if Skyboxes[SelectedSkybox] then
         Visuals:SwitchSkybox(SelectedSkybox)
     end
 end)
 
+SkyboxGroup:AddButton("浏览全部天空盒", function()
+    local AllSkyGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    AllSkyGui.Name = "AllSkyboxGui"
+    AllSkyGui.ResetOnSpawn = false
+    AllSkyGui.IgnoreGuiInset = true
+    AllSkyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local MainFrame = Instance.new("Frame", AllSkyGui)
+    MainFrame.Size = UDim2.fromOffset(300, 400)
+    MainFrame.Position = UDim2.fromScale(0.5, 0.5)
+    MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    MainFrame.BorderSizePixel = 0
+    local Corner = Instance.new("UICorner", MainFrame)
+    Corner.CornerRadius = UDim.new(0, 8)
+
+    local CloseBtn = Instance.new("TextButton", MainFrame)
+    CloseBtn.Size = UDim2.fromOffset(30, 30)
+    CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+    CloseBtn.AnchorPoint = Vector2.new(1, 0)
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = Color3.new(1,1,1)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    CloseBtn.BorderSizePixel = 0
+    Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(1,0)
+    CloseBtn.MouseButton1Click:Connect(function() AllSkyGui:Destroy() end)
+
+    local Title = Instance.new("TextLabel", MainFrame)
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.Position = UDim2.new(0, 0, 0, 5)
+    Title.BackgroundTransparency = 1
+    Title.Text = "所有天空盒"
+    Title.TextColor3 = Color3.new(1,1,1)
+    Title.Font = Enum.Font.SourceSansBold
+    Title.TextSize = 18
+
+    local Scroll = Instance.new("ScrollingFrame", MainFrame)
+    Scroll.Size = UDim2.new(1, -10, 1, -50)
+    Scroll.Position = UDim2.new(0, 5, 0, 45)
+    Scroll.BackgroundTransparency = 1
+    Scroll.BorderSizePixel = 0
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, #SkyboxNames * 30)
+
+    local Layout = Instance.new("UIListLayout", Scroll)
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    Layout.Padding = UDim.new(0, 4)
+
+    for _, name in ipairs(SkyboxNames) do
+        local Btn = Instance.new("TextButton", Scroll)
+        Btn.Size = UDim2.new(1, 0, 0, 28)
+        Btn.Text = name
+        Btn.TextColor3 = Color3.new(1,1,1)
+        Btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+        Btn.BorderSizePixel = 0
+        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4)
+        Btn.MouseButton1Click:Connect(function()
+            if Skyboxes[name] then
+                Visuals:SwitchSkybox(name)
+                if Options.SkyboxSelector then
+                    local values = Options.SkyboxSelector.Values
+                    if table.find(values, name) then
+                        Options.SkyboxSelector:SetValue(name)
+                    else
+                        Options.SkyboxSelector:SetValue(values[1])
+                    end
+                end
+                AllSkyGui:Destroy()
+            end
+        end)
+    end
+end)
+
+-- ===== 连跳移动端按钮 =====
+local MobileBhopGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+MobileBhopGui.Name = "MobileBhopGui"
+MobileBhopGui.ResetOnSpawn = false
+MobileBhopGui.IgnoreGuiInset = true
+MobileBhopGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MobileBhopButton = Instance.new("TextButton", MobileBhopGui)
+MobileBhopButton.Name = "BhopButton"
+MobileBhopButton.AnchorPoint = Vector2.new(0.5, 0.5)
+MobileBhopButton.Size = UDim2.fromOffset(SilentAimSettings.TriggerbotButtonSize, SilentAimSettings.TriggerbotButtonSize)
+MobileBhopButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MobileBhopButton.BackgroundTransparency = 0.2
+MobileBhopButton.BorderSizePixel = 0
+MobileBhopButton.Text = "自动连跳\n[关]"
+MobileBhopButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+MobileBhopButton.Font = Enum.Font.GothamBold
+MobileBhopButton.TextSize = 13
+MobileBhopButton.Visible = false
+MobileBhopButton.Active = true
+
+local MBHCorner = Instance.new("UICorner", MobileBhopButton)
+MBHCorner.CornerRadius = UDim.new(0, 12)
+
+local MBHStroke = Instance.new("UIStroke", MobileBhopButton)
+MBHStroke.Color = Color3.fromRGB(255, 80, 80)
+MBHStroke.Thickness = 2
+MBHStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local isDraggingBhop = false
+local dragInputBhop, dragStartBhop, startPosBhop
+
+MobileBhopButton.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        if not SilentAimSettings.MobileBhopButtonPinned then
+            isDraggingBhop = true
+            dragStartBhop = input.Position
+            startPosBhop = MobileBhopButton.Position
+        end
+    end
+end)
+
+MobileBhopButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputBhop = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInputBhop and isDraggingBhop then
+        local delta = input.Position - dragStartBhop
+        MobileBhopButton.Position = UDim2.new(startPosBhop.X.Scale, startPosBhop.X.Offset + delta.X, startPosBhop.Y.Scale, startPosBhop.Y.Offset + delta.Y)
+    end
+end)
+MobileBhopButton.InputEnded:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStartBhop
+        if isDraggingBhop then
+            isDraggingBhop = false
+            SilentAimSettings.MobileBhopButtonPosition = MobileBhopButton.Position.X.Offset .. "," .. MobileBhopButton.Position.Y.Offset
+        end
+        if delta and delta.Magnitude < 10 then
+            if getgenv().Toggles and getgenv().Toggles.AutoBhopToggle then
+                getgenv().Toggles.AutoBhopToggle:SetValue(not getgenv().Toggles.AutoBhopToggle.Value)
+            end
+        end
+    end
+end)
+
+-- ===== ESP 分区 (SensoryESP) =====
+local sensorySource = game:HttpGet("https://raw.githubusercontent.com/rthusrtghdfhtyjkehrfh/sensoryESP/main/ESP.lua")
+sensorySource = sensorySource:gsub("if not ESPConfig.LocalPlayer and player == LocalPlayer then continue end", "if not ESPConfig.LocalPlayer and player == LocalPlayer then continue end\n            if ESPConfig.TeamCheck and player ~= LocalPlayer and LocalPlayer.Team ~= nil and player.Team ~= nil and player.Team == LocalPlayer.Team then continue end")
+local esp = loadstring(sensorySource)()
+esp:Load({
+    Enabled = false,
+    Keybind = { Enabled = false, Key = Enum.KeyCode.Insert },
+    Players = false,
+    TeamCheck = SilentAimSettings.TeamCheck,
+    LocalPlayer = false,
+    LimitFPS = 70,
+    DynamicBoxes = false,
+    DynamicBoxesCheap = false,
+    VisibilityCheckRate = 0.3,
+
+    Boxes = false,
+    BoxType = "Normal",
+    BoxColor = Color3.fromRGB(255, 255, 0),
+    BoxThickness = 1.5,
+
+    Outlines = { Style = "Full", Color = Color3.fromRGB(0, 0, 0), Thickness = 1 },
+
+    BoxFill = {
+        Enabled = false,
+        Color = Color3.fromRGB(255, 255, 0),
+        Transparency = 0.85,
+        Gradient = {
+            Enabled = false,
+            Color1 = Color3.fromRGB(255, 200, 0),
+            Color2 = Color3.fromRGB(255, 100, 0),
+            Color3 = Color3.fromRGB(200, 50, 0),
+            Rotation = 0,
+            Animated = false,
+            Speed = 64,
+            Direction = "Right",
+        },
+    },
+
+    HealthBar = {
+        Enabled = false,
+        Position = "Left",
+        SideGap = 2,
+        Width = 2,
+        ShowText = false,
+        TextFollowBar = false,
+        HideWhenFullHP = false,
+        FollowGradientColorText = false,
+        Font = "Smallest Pixel-7",
+        TextSize = 9,
+        Outline = { Style = "Full", Color = Color3.fromRGB(0, 0, 0) },
+        Gradient = {
+            Enabled = true,
+            Color1 = Color3.fromRGB(0, 255, 0),
+            Color2 = Color3.fromRGB(255, 255, 0),
+            Color3 = Color3.fromRGB(255, 0, 0),
+        },
+    },
+
+    Names = false,
+    TextSize = 12,
+    TextColor = Color3.fromRGB(255, 255, 255),
+    TextOutline = true,
+    TextOutlineStyle = "Full",
+    TextGap = 3,
+    Font = "Proggy Clean",
+
+    TeamIndicator = { Enabled = false, Position = "Right", UseTeamColor = false, Color = Color3.fromRGB(255, 255, 0), Compact = true, TextSize = 10 },
+    FriendlyIndicator = { Enabled = false, Position = "Right", CheckTeam = false, CheckFriends = false, Text = "[F]", Color = Color3.fromRGB(0, 255, 0) },
+
+    Weapon = {
+        Enabled = false,
+        Gap = 1,
+        OutlineStyle = "Full",
+        Font = "Proggy Clean",
+        TextSize = 12,
+        Color = Color3.fromRGB(0, 213, 255),
+        InventoryPath = "ReplicatedStorage.Players.%NAME%.Inventory",
+        UseToolFallback = false,
+    },
+
+    Flags = {
+        Enabled = false,
+        Position = "Right",
+        Gap = 2,
+        SideGap = 4,
+        TextGap = 2,
+        OutlineStyle = "Full",
+        Font = "Smallest Pixel-7",
+        TextSize = 9,
+        Options = { Idle = false, Moving = false, Jumping = false, Swimming = false },
+        Colors = {
+            Idle = Color3.fromRGB(255, 255, 255),
+            Moving = Color3.fromRGB(255, 255, 0),
+            Jumping = Color3.fromRGB(0, 255, 255),
+            Swimming = Color3.fromRGB(65, 65, 255),
+        },
+    },
+
+    Skeleton = {
+        Enabled = false,
+        Color = Color3.fromRGB(0, 255, 0),
+        Outline = true,
+        OutlineColor = Color3.fromRGB(0, 0, 0),
+        Gradient = { Enabled = true, Color1 = Color3.fromRGB(0, 255, 0), Color2 = Color3.fromRGB(255, 255, 0) },
+    },
+
+    OffScreenArrows = {
+        Enabled = false,
+        Size = 14,
+        Color = Color3.fromRGB(255, 50, 50),
+        OrbitRadius = 100,
+        ArrowMode = "Compass",
+        Outline = true,
+        OutlineColor = Color3.fromRGB(0, 0, 0),
+        Names = {
+            Enabled = false,
+            Font = "Smallest Pixel-7",
+            TextSize = 9,
+            Color = Color3.fromRGB(255, 255, 255),
+            Outline = true,
+            OutlineColor = Color3.fromRGB(0, 0, 0),
+            Side = "Bottom",
+            Gap = 4,
+        },
+        Distance = {
+            Enabled = false,
+            Font = "Smallest Pixel-7",
+            TextSize = 9,
+            Color = Color3.fromRGB(255, 255, 255),
+            Outline = true,
+            OutlineColor = Color3.fromRGB(0, 0, 0),
+            Side = "Bottom",
+            Gap = 2,
+        },
+    },
+
+    Distance = {
+        Enabled = false,
+        Unit = "Meters",
+        StudsPerMeter = 3,
+        Ending = "m",
+        Gap = 3,
+        OutlineStyle = "Full",
+        Font = "Proggy Clean",
+        TextSize = 12,
+        Color = Color3.fromRGB(255, 255, 0),
+    },
+
+    Chams = {
+        Enabled = false,
+        Type = "Highlight",
+        Highlight = {
+            FillColor = Color3.fromRGB(255, 255, 0),
+            FillTransparency = 0.5,
+            OutlineColor = Color3.fromRGB(255, 255, 0),
+            OutlineTransparency = 0,
+            VisibleCheck = false,
+        },
+        Adornment = {
+            Color = Color3.fromRGB(255, 255, 0),
+            VisibleColor = Color3.fromRGB(0, 255, 0),
+            Transparency = 0.5,
+            AlwaysOnTop = false,
+            VisibleCheck = false,
+        },
+        MeshChams = {
+            FillColor = Color3.fromRGB(255, 255, 0),
+            FillTransparency = 0.5,
+            OutlineColor = Color3.fromRGB(255, 255, 0),
+            OutlineTransparency = 0,
+            VisibleCheck = false,
+        },
+    },
+
+    Directories = {},
+})
+SensoryESPInstance = esp
+SensoryESPConfig = esp:GetConfig()
+
+-- ESP 控件
+local SensoryGeneralBox = Tabs.ESP:AddLeftGroupbox("基础与方框")
+local SensoryTextBox = Tabs.ESP:AddLeftGroupbox("血条与文本")
+local SensoryExtraBox = Tabs.ESP:AddRightGroupbox("骨骼与离屏")
+local SensoryChamsBox = Tabs.ESP:AddRightGroupbox("Chams 与状态")
+
+SensoryGeneralBox:AddToggle("SensoryEnabled", {Text="启用 ESP", Default=SensoryESPConfig.Enabled}):OnChanged(function(v) SensoryESPConfig.Enabled=v end)
+SensoryGeneralBox:AddToggle("SensoryPlayers", {Text="玩家 ESP", Default=SensoryESPConfig.Players}):OnChanged(function(v) SensoryESPConfig.Players=v end)
+SensoryGeneralBox:AddToggle("SensoryTeamCheck", {Text="不显示队友", Default=SensoryESPConfig.TeamCheck}):OnChanged(function(v) SensoryESPConfig.TeamCheck=v end)
+SensoryGeneralBox:AddToggle("SensoryLocalPlayer", {Text="显示自己", Default=SensoryESPConfig.LocalPlayer}):OnChanged(function(v) SensoryESPConfig.LocalPlayer=v end)
+SensoryGeneralBox:AddToggle("SensoryKeybindEnabled", {Text="Insert 快捷开关", Default=SensoryESPConfig.Keybind.Enabled}):OnChanged(function(v) SensoryESPConfig.Keybind.Enabled=v end)
+SensoryGeneralBox:AddSlider("SensoryFPS", {Text="刷新帧率", Min=0, Max=240, Default=SensoryESPConfig.LimitFPS, Rounding=0, Suffix=" FPS"}):OnChanged(function(v) SensoryESPConfig.LimitFPS=v end)
+SensoryGeneralBox:AddToggle("SensoryDynamicBoxes", {Text="动态方框", Default=SensoryESPConfig.DynamicBoxes}):OnChanged(function(v) SensoryESPConfig.DynamicBoxes=v end)
+SensoryGeneralBox:AddToggle("SensoryDynamicCheap", {Text="低开销动态方框", Default=SensoryESPConfig.DynamicBoxesCheap}):OnChanged(function(v) SensoryESPConfig.DynamicBoxesCheap=v end)
+SensoryGeneralBox:AddToggle("SensoryBoxes", {Text="方框", Default=SensoryESPConfig.Boxes}):AddColorPicker("SensoryBoxColor", {Default=SensoryESPConfig.BoxColor, Title="方框颜色"})
+Toggles.SensoryBoxes:OnChanged(function(v) SensoryESPConfig.Boxes=v end)
+Options.SensoryBoxColor:OnChanged(function(v) SensoryESPConfig.BoxColor=v end)
+SensoryGeneralBox:AddDropdown("SensoryBoxType", {Text="方框样式", Default=SensoryESPConfig.BoxType, Values={"Normal","Corner","Circle"}}):OnChanged(function(v) SensoryESPConfig.BoxType=v end)
+SensoryGeneralBox:AddSlider("SensoryBoxThickness", {Text="方框粗细", Min=1, Max=5, Default=SensoryESPConfig.BoxThickness, Rounding=1}):OnChanged(function(v) SensoryESPConfig.BoxThickness=v end)
+SensoryGeneralBox:AddDropdown("SensoryOutlineStyle", {Text="方框描边", Default=SensoryESPConfig.Outlines.Style, Values={"Full","None"}}):OnChanged(function(v) SensoryESPConfig.Outlines.Style=v end)
+SensoryGeneralBox:AddSlider("SensoryOutlineThickness", {Text="描边粗细", Min=1, Max=5, Default=SensoryESPConfig.Outlines.Thickness, Rounding=1}):OnChanged(function(v) SensoryESPConfig.Outlines.Thickness=v end)
+SensoryGeneralBox:AddToggle("SensoryBoxFill", {Text="方框填充", Default=SensoryESPConfig.BoxFill.Enabled}):AddColorPicker("SensoryFillColor", {Default=SensoryESPConfig.BoxFill.Color, Title="填充颜色"})
+Toggles.SensoryBoxFill:OnChanged(function(v) SensoryESPConfig.BoxFill.Enabled=v end)
+Options.SensoryFillColor:OnChanged(function(v) SensoryESPConfig.BoxFill.Color=v end)
+SensoryGeneralBox:AddSlider("SensoryFillTransparency", {Text="填充透明度", Min=0, Max=1, Default=SensoryESPConfig.BoxFill.Transparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.BoxFill.Transparency=v end)
+SensoryGeneralBox:AddToggle("SensoryFillGradient", {Text="填充渐变", Default=SensoryESPConfig.BoxFill.Gradient.Enabled}):OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Enabled=v end)
+SensoryGeneralBox:AddToggle("SensoryFillAnimated", {Text="渐变动画", Default=SensoryESPConfig.BoxFill.Gradient.Animated}):OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Animated=v end)
+SensoryGeneralBox:AddSlider("SensoryFillSpeed", {Text="渐变速度", Min=0, Max=360, Default=SensoryESPConfig.BoxFill.Gradient.Speed, Rounding=0}):OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Speed=v end)
+SensoryGeneralBox:AddLabel("方框描边颜色"):AddColorPicker("SensoryOutlineColor", {Default=SensoryESPConfig.Outlines.Color, Title="方框描边颜色"})
+Options.SensoryOutlineColor:OnChanged(function(v) SensoryESPConfig.Outlines.Color=v end)
+SensoryGeneralBox:AddLabel("渐变颜色"):AddColorPicker("SensoryFillGradient1", {Default=SensoryESPConfig.BoxFill.Gradient.Color1, Title="渐变起始"}):AddColorPicker("SensoryFillGradient2", {Default=SensoryESPConfig.BoxFill.Gradient.Color2, Title="渐变中间"}):AddColorPicker("SensoryFillGradient3", {Default=SensoryESPConfig.BoxFill.Gradient.Color3, Title="渐变末端"})
+Options.SensoryFillGradient1:OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Color1=v end)
+Options.SensoryFillGradient2:OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Color2=v end)
+Options.SensoryFillGradient3:OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Color3=v end)
+
+SensoryTextBox:AddToggle("SensoryHealth", {Text="血条", Default=SensoryESPConfig.HealthBar.Enabled}):OnChanged(function(v) SensoryESPConfig.HealthBar.Enabled=v end)
+SensoryTextBox:AddDropdown("SensoryHealthPosition", {Text="血条位置", Default=SensoryESPConfig.HealthBar.Position, Values={"Left","Right","Top","Bottom"}}):OnChanged(function(v) SensoryESPConfig.HealthBar.Position=v end)
+SensoryTextBox:AddSlider("SensoryHealthWidth", {Text="血条宽度", Min=1, Max=8, Default=SensoryESPConfig.HealthBar.Width, Rounding=0}):OnChanged(function(v) SensoryESPConfig.HealthBar.Width=v end)
+SensoryTextBox:AddToggle("SensoryHealthText", {Text="血量数字", Default=SensoryESPConfig.HealthBar.ShowText}):OnChanged(function(v) SensoryESPConfig.HealthBar.ShowText=v end)
+SensoryTextBox:AddToggle("SensoryHealthFollow", {Text="数字跟随血条", Default=SensoryESPConfig.HealthBar.TextFollowBar}):OnChanged(function(v) SensoryESPConfig.HealthBar.TextFollowBar=v end)
+SensoryTextBox:AddToggle("SensoryHealthHideFull", {Text="满血隐藏数字", Default=SensoryESPConfig.HealthBar.HideWhenFullHP}):OnChanged(function(v) SensoryESPConfig.HealthBar.HideWhenFullHP=v end)
+SensoryTextBox:AddToggle("SensoryHealthGradient", {Text="血条渐变", Default=SensoryESPConfig.HealthBar.Gradient.Enabled}):OnChanged(function(v) SensoryESPConfig.HealthBar.Gradient.Enabled=v end)
+SensoryTextBox:AddLabel("血条渐变颜色"):AddColorPicker("SensoryHealthHigh", {Default=SensoryESPConfig.HealthBar.Gradient.Color1, Title="高血量"}):AddColorPicker("SensoryHealthMid", {Default=SensoryESPConfig.HealthBar.Gradient.Color2, Title="中血量"}):AddColorPicker("SensoryHealthLow", {Default=SensoryESPConfig.HealthBar.Gradient.Color3, Title="低血量"})
+Options.SensoryHealthHigh:OnChanged(function(v) SensoryESPConfig.HealthBar.Gradient.Color1=v end)
+Options.SensoryHealthMid:OnChanged(function(v) SensoryESPConfig.HealthBar.Gradient.Color2=v end)
+Options.SensoryHealthLow:OnChanged(function(v) SensoryESPConfig.HealthBar.Gradient.Color3=v end)
+SensoryTextBox:AddToggle("SensoryNames", {Text="名称", Default=SensoryESPConfig.Names}):AddColorPicker("SensoryTextColor", {Default=SensoryESPConfig.TextColor, Title="文字颜色"})
+Toggles.SensoryNames:OnChanged(function(v) SensoryESPConfig.Names=v end)
+Options.SensoryTextColor:OnChanged(function(v) SensoryESPConfig.TextColor=v end)
+SensoryTextBox:AddSlider("SensoryTextSize", {Text="名称字号", Min=8, Max=24, Default=SensoryESPConfig.TextSize, Rounding=0}):OnChanged(function(v) SensoryESPConfig.TextSize=v end)
+SensoryTextBox:AddToggle("SensoryTextOutline", {Text="文字描边", Default=SensoryESPConfig.TextOutline}):OnChanged(function(v) SensoryESPConfig.TextOutline=v end)
+SensoryTextBox:AddToggle("SensoryTeam", {Text="队伍标识", Default=SensoryESPConfig.TeamIndicator.Enabled}):OnChanged(function(v) SensoryESPConfig.TeamIndicator.Enabled=v end)
+SensoryTextBox:AddToggle("SensoryFriendly", {Text="友军标识", Default=SensoryESPConfig.FriendlyIndicator.Enabled}):OnChanged(function(v) SensoryESPConfig.FriendlyIndicator.Enabled=v end)
+SensoryTextBox:AddToggle("SensoryWeapon", {Text="武器名称", Default=SensoryESPConfig.Weapon.Enabled}):AddColorPicker("SensoryWeaponColor", {Default=SensoryESPConfig.Weapon.Color, Title="武器文字颜色"})
+Toggles.SensoryWeapon:OnChanged(function(v) SensoryESPConfig.Weapon.Enabled=v end)
+Options.SensoryWeaponColor:OnChanged(function(v) SensoryESPConfig.Weapon.Color=v end)
+SensoryTextBox:AddSlider("SensoryWeaponSize", {Text="武器字号", Min=8, Max=24, Default=SensoryESPConfig.Weapon.TextSize, Rounding=0}):OnChanged(function(v) SensoryESPConfig.Weapon.TextSize=v end)
+SensoryTextBox:AddToggle("SensoryDistance", {Text="距离", Default=SensoryESPConfig.Distance.Enabled}):AddColorPicker("SensoryDistanceColor", {Default=SensoryESPConfig.Distance.Color, Title="距离颜色"})
+Toggles.SensoryDistance:OnChanged(function(v) SensoryESPConfig.Distance.Enabled=v end)
+Options.SensoryDistanceColor:OnChanged(function(v) SensoryESPConfig.Distance.Color=v end)
+SensoryTextBox:AddDropdown("SensoryDistanceUnit", {Text="距离单位", Default=SensoryESPConfig.Distance.Unit, Values={"Meters","Studs"}}):OnChanged(function(v) SensoryESPConfig.Distance.Unit=v; SensoryESPConfig.Distance.Ending=v=="Meters" and "m" or " studs" end)
+
+SensoryExtraBox:AddToggle("SensorySkeleton", {Text="骨骼", Default=SensoryESPConfig.Skeleton.Enabled}):AddColorPicker("SensorySkeletonColor", {Default=SensoryESPConfig.Skeleton.Color, Title="骨骼颜色"})
+Toggles.SensorySkeleton:OnChanged(function(v) SensoryESPConfig.Skeleton.Enabled=v end)
+Options.SensorySkeletonColor:OnChanged(function(v) SensoryESPConfig.Skeleton.Color=v end)
+SensoryExtraBox:AddToggle("SensorySkeletonOutline", {Text="骨骼描边", Default=SensoryESPConfig.Skeleton.Outline}):OnChanged(function(v) SensoryESPConfig.Skeleton.Outline=v end)
+SensoryExtraBox:AddToggle("SensorySkeletonGradient", {Text="骨骼渐变", Default=SensoryESPConfig.Skeleton.Gradient.Enabled}):OnChanged(function(v) SensoryESPConfig.Skeleton.Gradient.Enabled=v end)
+SensoryExtraBox:AddToggle("SensoryArrows", {Text="离屏箭头", Default=SensoryESPConfig.OffScreenArrows.Enabled}):AddColorPicker("SensoryArrowColor", {Default=SensoryESPConfig.OffScreenArrows.Color, Title="箭头颜色"})
+Toggles.SensoryArrows:OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Enabled=v end)
+Options.SensoryArrowColor:OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Color=v end)
+SensoryExtraBox:AddDropdown("SensoryArrowMode", {Text="箭头模式", Default=SensoryESPConfig.OffScreenArrows.ArrowMode, Values={"Compass","Camera"}}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.ArrowMode=v end)
+SensoryExtraBox:AddSlider("SensoryArrowSize", {Text="箭头大小", Min=6, Max=40, Default=SensoryESPConfig.OffScreenArrows.Size, Rounding=0}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Size=v end)
+SensoryExtraBox:AddSlider("SensoryArrowRadius", {Text="箭头半径", Min=40, Max=500, Default=SensoryESPConfig.OffScreenArrows.OrbitRadius, Rounding=0}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.OrbitRadius=v end)
+SensoryExtraBox:AddToggle("SensoryArrowOutline", {Text="箭头描边", Default=SensoryESPConfig.OffScreenArrows.Outline}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Outline=v end)
+SensoryExtraBox:AddToggle("SensoryArrowNames", {Text="离屏名称", Default=SensoryESPConfig.OffScreenArrows.Names.Enabled}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Names.Enabled=v end)
+SensoryExtraBox:AddToggle("SensoryArrowDistance", {Text="离屏距离", Default=SensoryESPConfig.OffScreenArrows.Distance.Enabled}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Distance.Enabled=v end)
+
+SensoryChamsBox:AddToggle("SensoryFlags", {Text="状态 Flags", Default=SensoryESPConfig.Flags.Enabled}):OnChanged(function(v) SensoryESPConfig.Flags.Enabled=v end)
+SensoryChamsBox:AddToggle("SensoryFlagIdle", {Text="Idle", Default=SensoryESPConfig.Flags.Options.Idle}):OnChanged(function(v) SensoryESPConfig.Flags.Options.Idle=v end)
+SensoryChamsBox:AddToggle("SensoryFlagMoving", {Text="Moving", Default=SensoryESPConfig.Flags.Options.Moving}):OnChanged(function(v) SensoryESPConfig.Flags.Options.Moving=v end)
+SensoryChamsBox:AddToggle("SensoryFlagJumping", {Text="Jumping", Default=SensoryESPConfig.Flags.Options.Jumping}):OnChanged(function(v) SensoryESPConfig.Flags.Options.Jumping=v end)
+SensoryChamsBox:AddToggle("SensoryFlagSwimming", {Text="Swimming", Default=SensoryESPConfig.Flags.Options.Swimming}):OnChanged(function(v) SensoryESPConfig.Flags.Options.Swimming=v end)
+SensoryChamsBox:AddToggle("SensoryChams", {Text="Chams", Default=SensoryESPConfig.Chams.Enabled}):OnChanged(function(v) SensoryESPConfig.Chams.Enabled=v end)
+SensoryChamsBox:AddDropdown("SensoryChamsType", {Text="Chams 类型", Default=SensoryESPConfig.Chams.Type, Values={"Highlight","Adornment","MeshChams"}}):OnChanged(function(v) SensoryESPConfig.Chams.Type=v end)
+SensoryChamsBox:AddLabel("Highlight 颜色"):AddColorPicker("SensoryHighlightFill", {Default=SensoryESPConfig.Chams.Highlight.FillColor, Title="Highlight 填充"}):AddColorPicker("SensoryHighlightOutline", {Default=SensoryESPConfig.Chams.Highlight.OutlineColor, Title="Highlight 描边"})
+Options.SensoryHighlightFill:OnChanged(function(v) SensoryESPConfig.Chams.Highlight.FillColor=v; SensoryESPConfig.Chams.MeshChams.FillColor=v end)
+Options.SensoryHighlightOutline:OnChanged(function(v) SensoryESPConfig.Chams.Highlight.OutlineColor=v; SensoryESPConfig.Chams.MeshChams.OutlineColor=v end)
+SensoryChamsBox:AddLabel("Adornment 颜色"):AddColorPicker("SensoryAdornmentColor", {Default=SensoryESPConfig.Chams.Adornment.Color, Title="遮挡颜色"}):AddColorPicker("SensoryAdornmentVisible", {Default=SensoryESPConfig.Chams.Adornment.VisibleColor, Title="可见颜色"})
+Options.SensoryAdornmentColor:OnChanged(function(v) SensoryESPConfig.Chams.Adornment.Color=v end)
+Options.SensoryAdornmentVisible:OnChanged(function(v) SensoryESPConfig.Chams.Adornment.VisibleColor=v end)
+SensoryChamsBox:AddToggle("SensoryChamsVisible", {Text="可见性检测", Default=SensoryESPConfig.Chams.Highlight.VisibleCheck}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.VisibleCheck=v; SensoryESPConfig.Chams.Adornment.VisibleCheck=v; SensoryESPConfig.Chams.MeshChams.VisibleCheck=v end)
+SensoryChamsBox:AddSlider("SensoryChamsFillTransparency", {Text="Chams 填充透明度", Min=0, Max=1, Default=SensoryESPConfig.Chams.Highlight.FillTransparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.FillTransparency=v; SensoryESPConfig.Chams.MeshChams.FillTransparency=v; SensoryESPConfig.Chams.Adornment.Transparency=v end)
+SensoryChamsBox:AddSlider("SensoryChamsOutlineTransparency", {Text="Chams 描边透明度", Min=0, Max=1, Default=SensoryESPConfig.Chams.Highlight.OutlineTransparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.OutlineTransparency=v; SensoryESPConfig.Chams.MeshChams.OutlineTransparency=v end)
+SensoryChamsBox:AddToggle("SensoryChamsAlwaysTop", {Text="始终置顶", Default=SensoryESPConfig.Chams.Adornment.AlwaysOnTop}):OnChanged(function(v) SensoryESPConfig.Chams.Adornment.AlwaysOnTop=v end)
+
+-- ===== 杂项功能连接（AA, Desync, Bhop, Radar 渲染已在 RenderStepped 中） =====
+local function GetFreestandYaw()
+    local char = LocalPlayer.Character
+    if not char or not char.PrimaryPart then return 0 end
+    local Origin = char.PrimaryPart.Position
+    local RayParams = RaycastParams.new()
+    RayParams.FilterDescendantsInstances = { char, Camera }
+    RayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+    local Directions = { Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(1, 0, 0), Vector3.new(0, 0, -1) }
+    local Yaws = { -90, 0, 90, 180 }
+    local BestDirection = 0
+    local MaxDist = -math.huge
+
+    for i = 1, #Directions do
+        local Result = workspace:Raycast(Origin, Directions[i] * 100, RayParams)
+        local Dist = Result and (Result.Position - Origin).Magnitude or 100
+        if Dist > MaxDist then
+            MaxDist = Dist
+            BestDirection = Yaws[i]
+        end
+    end
+    return BestDirection
+end
+
+local AARenderConnection = RunService.RenderStepped:Connect(function(DeltaTime)
+    if not SilentAimSettings.AA_Enabled then return end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+        local RootPart = char.PrimaryPart
+        if not RootPart then return end
+
+        local JitterAmount = SilentAimSettings.AA_Jitter
+        local Method = SilentAimSettings.AA_Yaw
+        local Roll = SilentAimSettings.AA_UpsideDown and math.rad(180) or 0
+
+        if Method == "Spin" then
+            aaRotation = aaRotation + JitterAmount
+            RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.rad(aaRotation), Roll)
+        elseif Method == "Jitter" then
+            local Delta = JitterAmount
+            if math.random() < 0.5 then Delta = -Delta end
+            aaRotation = aaRotation + Delta
+            RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.rad(aaRotation), Roll)
+        elseif Method == "Backward" then
+            RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.pi, Roll)
+        elseif Method == "Freestanding" then
+            RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.rad(GetFreestandYaw()), Roll)
+        end
+    end
+end)
+
+local DesyncRenderConnection = RunService.RenderStepped:Connect(function()
+    if not SilentAimSettings.Desync_Enabled then 
+        local fakeChar = workspace:FindFirstChild("FakeChar")
+        if fakeChar then fakeChar:Destroy() end
+        local existingSeat = workspace:FindFirstChild("tRGWJUI%ERjtguihe85ur")
+        if existingSeat then existingSeat:Destroy() end
+        return 
+    end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+        task.spawn(function()
+            if char:FindFirstChild("HumanoidRootPart") and not workspace:FindFirstChild("tRGWJUI%ERjtguihe85ur") then
+                local cee = Instance.new("Seat")
+                cee.Name = "tRGWJUI%ERjtguihe85ur"
+                cee.Parent = workspace
+                cee.Size = Vector3.new(4, 1, 1)
+                cee.CanCollide = false
+                cee.CanQuery = false
+                cee.Transparency = 1
+
+                local awe = Instance.new("Weld", cee)
+                local bb = Instance.new("Weld")
+                bb.Name = "geriuzh5eruzhge5"
+                bb.Parent = char.HumanoidRootPart
+
+                cee.CFrame = CFrame.new(char.HumanoidRootPart.Position)
+                awe.Part0 = char.HumanoidRootPart
+                awe.Part1 = cee
+                char.HumanoidRootPart.CFrame = CFrame.new(cee.Position)
+                bb.Part0 = char.HumanoidRootPart
+                bb.Part1 = cee
+
+                if SilentAimSettings.Desync_Visualize then
+                    local sf = workspace
+                    if not sf:FindFirstChild("FakeChar") then
+                        local i = Instance.new("Model", sf)
+                        i.Name = "FakeChar"
+                        for _, v in ipairs(char:GetDescendants()) do
+                            if v:IsA("BasePart") and v.Transparency ~= 1 and not v.Parent:IsA("Accessory") then
+                                local a = v:Clone()
+                                a.CanCollide = false
+                                a.Parent = i
+                                v.CanQuery = false
+                                a.Anchored = true
+                                a.Color = SilentAimSettings.Desync_Color
+                                a.Material = Enum.Material.ForceField
+                                a.Transparency = 0.6
+                                a.Reflectance = 0
+                                a.CollisionGroup = "Default"
+
+                                if a:IsA("MeshPart") then a.TextureID = "" end
+                                for _, c in ipairs(a:GetChildren()) do
+                                    if not c:IsA("SpecialMesh") then c:Destroy() else c.TextureId = "" end
+                                end
+                            end
+                        end
+                    end
+                end
+
+                task.delay(SilentAimSettings.Desync_Ticks / 10000, function()
+                    if cee and cee.Parent then cee:Destroy() end
+                    local fakeChar = workspace:FindFirstChild("FakeChar")
+                    if fakeChar then fakeChar:Destroy() end
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local existing = char.HumanoidRootPart:FindFirstChild("geriuzh5eruzhge5")
+                        if existing then existing:Destroy() end
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+local BhopConnection = RunService.RenderStepped:Connect(function(dt)
+    if not SilentAimSettings.AutoBhopEnabled then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    
+    if humanoid and humanoid.Health > 0 then
+        if humanoid.FloorMaterial ~= Enum.Material.Air then
+            humanoid.Jump = true
+        else
+            if hrp and SilentAimSettings.BhopBoostAmount > 0 and humanoid.MoveDirection.Magnitude > 0 then
+                local boost = SilentAimSettings.BhopBoostAmount
+                hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (boost * dt))
+            end
+        end
+    end
+end)
+
+-- ===== 初始化 =====
 FOVCircleGui.Enabled = Toggles.FOVVisibleToggle.Value
 FOVStroke.Color = Options.FOVColorPicker.Value
 FOVCircleFrame.Size = UDim2.fromOffset(Options.FOVRadiusSlider.Value * 2, Options.FOVRadiusSlider.Value * 2)
 IndependentPanelFrame.Draggable = not SilentAimSettings.IndependentPanelPinned
+
+local posBhop = SilentAimSettings.MobileBhopButtonPosition:split(",")
+local bx = tonumber(posBhop[1]) or (Camera.ViewportSize.X / 2 + 80)
+local by = tonumber(posBhop[2]) or (Camera.ViewportSize.Y / 2)
+MobileBhopButton.Position = UDim2.fromOffset(bx, by)
 
 task.spawn(function()
     while task.wait(2) do
@@ -894,6 +1827,11 @@ local DAMAGE_INDICATOR_FADE_TIME = 1
 
 local pos = SilentAimSettings.IndependentPanelPosition:split(",")
 IndependentPanelFrame.Position = UDim2.fromOffset(tonumber(pos[1]), tonumber(pos[2]))
+
+local posTrigger = SilentAimSettings.MobileTriggerButtonPosition:split(",")
+local sX = tonumber(posTrigger[1]) or (Camera.ViewportSize.X / 2)
+local sY = tonumber(posTrigger[2]) or (Camera.ViewportSize.Y / 2)
+MobileTriggerButton.Position = UDim2.fromOffset(sX, sY)
 
 local lastTargetCharacter = nil
 local lockedRandomPart = nil
@@ -1117,7 +2055,7 @@ resume(create(function()
                 end
             end
 
-            -- ===== 追踪线（GUI） =====
+            -- 追踪线（GUI）
             if Toggles.ShowTracerToggle.Value then
                 local targetHead = currentTargetCharacter and currentTargetCharacter:FindFirstChild("Head")
                 local tracerTargetPosition = (targetHead and targetHead.Position) or currentTargetPart.Position
@@ -1248,6 +2186,108 @@ resume(create(function()
                 independent_panel_texts.Health.Text = "目标: 无"
             end
         end
+
+        -- ===== 自动扳机触发 =====
+        if Toggles.TriggerbotToggle and Toggles.TriggerbotToggle.Value and currentTargetPart then
+            if tick() - lastTriggerTime >= (1 / SilentAimSettings.TriggerbotCPS) then
+                lastTriggerTime = tick()
+                task.spawn(function()
+                    local VIM = game:GetService("VirtualInputManager")
+                    local btnX = math.floor(MobileTriggerButton.AbsolutePosition.X + (MobileTriggerButton.AbsoluteSize.X / 2)) + SilentAimSettings.TriggerbotOffsetX
+                    local btnY = math.floor(MobileTriggerButton.AbsolutePosition.Y + (MobileTriggerButton.AbsoluteSize.Y / 2)) + SilentAimSettings.TriggerbotOffsetY
+                    
+                    if SilentAimSettings.ShowClickDebug and ClickDebugDot then
+                        ClickDebugDot.Position = UDim2.fromOffset(btnX, btnY)
+                        ClickDebugDot.Visible = true
+                    elseif ClickDebugDot then
+                        ClickDebugDot.Visible = false
+                    end
+                    
+                    local oldVis = MobileTriggerButton.Visible
+                    if oldVis then MobileTriggerButton.Visible = false end
+                    
+                    if UserInputService.TouchEnabled then
+                        VIM:SendTouchEvent(10, 0, btnX, btnY)
+                        task.wait(0.01)
+                        VIM:SendTouchEvent(10, 2, btnX, btnY)
+                    else
+                        VIM:SendMouseButtonEvent(btnX, btnY, 0, true, game, 1)
+                        task.wait(0.01)
+                        VIM:SendMouseButtonEvent(btnX, btnY, 0, false, game, 1)
+                    end
+                    
+                    if oldVis then MobileTriggerButton.Visible = true end
+                end)
+            end
+        end
+        
+        -- ===== 雷达渲染 =====
+        if SilentAimSettings.RadarEnabled and RadarBG and RadarBG.Visible then
+            local myChar = LocalPlayer.Character
+            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            if myRoot then
+                local myPos = myRoot.Position
+                local camLook = Camera.CFrame.LookVector
+                local camYaw = math.atan2(-camLook.X, -camLook.Z)
+                
+                local targets = {}
+                for _, p in ipairs(Players:GetPlayers()) do 
+                    if p ~= LocalPlayer and p.Character then 
+                        if not (SilentAimSettings.TeamCheck and p.Team == LocalPlayer.Team) then
+                            table.insert(targets, p.Character) 
+                        end
+                    end 
+                end
+                for _, n in ipairs(npcList) do 
+                    if not SilentAimSettings.AdvancedFiltering or isWhitelisted(n) then
+                        table.insert(targets, n) 
+                    end
+                end
+                
+                local activeBlips = {}
+                for _, char in ipairs(targets) do
+                    local hum = char:FindFirstChild("Humanoid")
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if hum and hum.Health > 0 and root then
+                        local diff = root.Position - myPos
+                        local dist = diff.Magnitude
+                        if dist <= SilentAimSettings.RadarRange then
+                            local relX = diff.X
+                            local relZ = diff.Z
+                            
+                            local rotX = relX * math.cos(camYaw) - relZ * math.sin(camYaw)
+                            local rotZ = relX * math.sin(camYaw) + relZ * math.cos(camYaw)
+                            
+                            local scale = (RadarBG.AbsoluteSize.X / 2) / SilentAimSettings.RadarRange
+                            local uiX = rotX * scale
+                            local uiY = rotZ * scale
+                            
+                            activeBlips[char] = {uiX, uiY}
+                        end
+                    end
+                end
+                
+                for char, pos2d in pairs(activeBlips) do
+                    local blip = radarBlips[char]
+                    if not blip then
+                        blip = Instance.new("Frame", RadarBG)
+                        blip.Size = UDim2.fromOffset(4, 4)
+                        blip.AnchorPoint = Vector2.new(0.5, 0.5)
+                        blip.BackgroundColor3 = Color3.new(1, 0, 0)
+                        Instance.new("UICorner", blip).CornerRadius = UDim.new(1, 0)
+                        radarBlips[char] = blip
+                    end
+                    blip.Position = UDim2.new(0.5, pos2d[1], 0.5, pos2d[2])
+                    blip.Visible = true
+                end
+                
+                for char, blip in pairs(radarBlips) do
+                    if not activeBlips[char] then
+                        blip.Visible = false
+                    end
+                end
+            end
+        end
         
         if Toggles.FOVVisibleToggle.Value then
             if Toggles.FixedFOVToggle.Value then FOVCircleFrame.Position = UDim2.fromScale(0.5, 0.5) else local mousePos = GetMouseLocation(UserInputService); FOVCircleFrame.Position = UDim2.fromOffset(mousePos.X, mousePos.Y) end
@@ -1348,6 +2388,16 @@ Library:OnUnload(function()
         transparencyLoopConnection = nil
         restoreCharacterAppearance()
     end
+    if SensoryESPInstance then
+        pcall(function() SensoryESPInstance:Unload() end)
+        SensoryESPInstance = nil
+    end
+    if MobileTriggerGui then MobileTriggerGui:Destroy() end
+    if MobileBhopGui then MobileBhopGui:Destroy() end
+    if RadarGui then RadarGui:Destroy() end
+    if AARenderConnection then AARenderConnection:Disconnect() end
+    if DesyncRenderConnection then DesyncRenderConnection:Disconnect() end
+    if BhopConnection then BhopConnection:Disconnect() end
     hideAllVisuals()
     oldNamecall:UnHook()
     oldIndex:UnHook()
