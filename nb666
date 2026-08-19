@@ -1268,6 +1268,40 @@ end)
 
 -- ===== 杂项 (Misc) =====
 local CharacterModGroup = Tabs.Misc:AddLeftGroupbox("角色修改")
+
+-- 第三人称视角
+local ThirdPersonGroup = Tabs.Misc:AddLeftGroupbox("第三人称")
+local originalCameraMode = LocalPlayer.CameraMode
+local originalMaxZoomDistance = LocalPlayer.CameraMaxZoomDistance
+
+ThirdPersonGroup:AddToggle("ThirdPersonToggle", {
+    Text = "第三人称视角",
+    Default = false,
+    Tooltip = "开启后切换为 Classic 相机模式并允许远距离缩放"
+}):OnChanged(function(Value)
+    if Value then
+        LocalPlayer.CameraMaxZoomDistance = 99999
+        LocalPlayer.CameraMode = Enum.CameraMode.Classic
+    else
+        LocalPlayer.CameraMode = originalCameraMode
+        LocalPlayer.CameraMaxZoomDistance = originalMaxZoomDistance
+    end
+end)
+
+-- 可选：距离滑块，实时调整最大缩放距离（仅在第三人称开启时生效）
+ThirdPersonGroup:AddSlider("ThirdPersonDistance", {
+    Text = "最大距离",
+    Min = 0,
+    Max = 100,
+    Default = 20,
+    Rounding = 0,
+    Suffix = " studs"
+}):OnChanged(function(Value)
+    if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
+        LocalPlayer.CameraMaxZoomDistance = Value * 100  -- 将滑块值映射到更大的范围
+    end
+end)
+
 local originalCharacterData = {}
 local transparencyLoopConnection = nil
 local function restoreCharacterAppearance()
