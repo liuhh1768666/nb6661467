@@ -1119,9 +1119,20 @@ ExtrasBox:AddToggle("HighlightRainbowToggle", { Text = "高亮彩虹色", Defaul
 ExtrasBox:AddToggle("DamageNotifierToggle", { Text = "显示伤害通知", Default = SilentAimSettings.ShowDamageNotifier }):OnChanged(function(Value) SilentAimSettings.ShowDamageNotifier = Value end)
 ExtrasBox:AddDropdown('HitSound', { Text = '击中音效', Default = '关闭', Values = {'关闭', 'bell', 'metal', 'click', 'exp'} })
 ExtrasBox:AddToggle("ShowTracerToggle", { Text = "显示追踪线", Default = SilentAimSettings.ShowTracer }):AddColorPicker("TracerColorPicker", { Default = Color3.fromRGB(255, 255, 0), Title = "追踪线颜色" })
+ExtrasBox:AddDropdown("TracerPositionDropdown", {
+    Text = "追踪线位置",
+    Default = "中间下面",
+    Values = {"中间", "中间下面"}
+})
 Toggles.ShowTracerToggle:OnChanged(function(Value) SilentAimSettings.ShowTracer = Value end)
 Options.TracerColorPicker:OnChanged(function(Value) TracerLine.BackgroundColor3 = Value end)
 ExtrasBox:AddSlider('TracerYOffsetSlider', { Text = '追踪线Y轴偏移', Default = SilentAimSettings.Tracer_Y_Offset, Min = -10, Max = 10, Rounding = 3, Suffix = " studs" }):OnChanged(function(Value) SilentAimSettings.Tracer_Y_Offset = Value end)
+ExtrasBox:AddButton("恢复默认Y轴偏移", function()
+    SilentAimSettings.Tracer_Y_Offset = 0
+    if Options.TracerYOffsetSlider then
+        Options.TracerYOffsetSlider:SetValue(0)
+    end
+end)
 
 -- ===== 管理 (Management) =====
 local ManualLockGroupBox = Tabs.Management:AddLeftGroupbox("手动锁定")
@@ -1274,21 +1285,40 @@ local ThirdPersonGroup = Tabs.Misc:AddLeftGroupbox("第三人称")
 local originalCameraMode = LocalPlayer.CameraMode
 local originalMaxZoomDistance = LocalPlayer.CameraMaxZoomDistance
 
+local function applyThirdPerson()
+    LocalPlayer.CameraMaxZoomDistance = 99999
+    LocalPlayer.CameraMode = Enum.CameraMode.Classic
+end
+
 ThirdPersonGroup:AddToggle("ThirdPersonToggle", {
     Text = "第三人称视角",
     Default = false,
     Tooltip = "开启后切换为 Classic 相机模式并允许远距离缩放"
 }):OnChanged(function(Value)
     if Value then
-        LocalPlayer.CameraMaxZoomDistance = 99999
-        LocalPlayer.CameraMode = Enum.CameraMode.Classic
+        applyThirdPerson()
     else
         LocalPlayer.CameraMode = originalCameraMode
         LocalPlayer.CameraMaxZoomDistance = originalMaxZoomDistance
     end
 end)
 
--- 可选：距离滑块，实时调整最大缩放距离（仅在第三人称开启时生效）
+-- 死亡后保留机制
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
+        task.defer(function()
+            task.wait(0.5)  -- 等待相机系统初始化
+            applyThirdPerson()
+        end)
+    end
+end)
+
+-- 初始状态同步（防止脚本重载时开关状态丢失）
+if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
+    applyThirdPerson()
+end
+
+-- 可选距离滑块
 ThirdPersonGroup:AddSlider("ThirdPersonDistance", {
     Text = "最大距离",
     Min = 0,
@@ -1298,7 +1328,7 @@ ThirdPersonGroup:AddSlider("ThirdPersonDistance", {
     Suffix = " studs"
 }):OnChanged(function(Value)
     if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
-        LocalPlayer.CameraMaxZoomDistance = Value * 100  -- 将滑块值映射到更大的范围
+        LocalPlayer.CameraMaxZoomDistance = Value * 100
     end
 end)
 
@@ -1702,7 +1732,7 @@ SensoryChamsBox:AddSlider("SensoryChamsFillTransparency", {Text="Chams 填充透
 SensoryChamsBox:AddSlider("SensoryChamsOutlineTransparency", {Text="Chams 描边透明度", Min=0, Max=1, Default=SensoryESPConfig.Chams.Highlight.OutlineTransparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.OutlineTransparency=v; SensoryESPConfig.Chams.MeshChams.OutlineTransparency=v end)
 SensoryChamsBox:AddToggle("SensoryChamsAlwaysTop", {Text="始终置顶", Default=SensoryESPConfig.Chams.Adornment.AlwaysOnTop}):OnChanged(function(v) SensoryESPConfig.Chams.Adornment.AlwaysOnTop=v end)
 
--- ===== 独立 GUI 骨骼绘制模块（优化版） =====
+-- ===== 独立 GUI 骨骼绘制模块（优化版 + 队伍检查联动） =====
 do
     local BoneGui = Instance.new("ScreenGui")
     BoneGui.Name = "BoneGui"
@@ -1908,18 +1938,25 @@ do
             return
         end
 
+        -- 读取 ESP 队伍检查设置
+        local teamCheck = SensoryESPConfig and SensoryESPConfig.TeamCheck or false
+
         local validCharacters = {}
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local character = player.Character
                 local humanoid = character:FindFirstChildOfClass("Humanoid")
                 if humanoid and humanoid.Health > 0 then
-                    validCharacters[character] = true
-                    updateCharacterBones(character)
+                    -- 队伍检查：如果开启且是队友，则跳过绘制
+                    if not (teamCheck and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team) then
+                        validCharacters[character] = true
+                        updateCharacterBones(character)
+                    end
                 end
             end
         end
 
+        -- 清理无效或被过滤的角色
         for character, _ in pairs(drawnCharacters) do
             if not validCharacters[character] then
                 cleanCharacter(character)
@@ -2204,26 +2241,32 @@ resume(create(function()
             end
         end
 
-        -- 追踪线更新（修复）
-        if SilentAimSettings.ShowTracer and currentTargetPart then
-            local targetScreenPos, onScreen = getPositionOnScreen(currentTargetPart.Position)
-            if onScreen then
-                local startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y) -- 屏幕底部中心
-                local endPos = targetScreenPos
-                local diff = endPos - startPos
-                local length = diff.Magnitude
-                local mid = (startPos + endPos) / 2
-                local angle = math.deg(math.atan2(diff.Y, diff.X))
-                TracerLine.Size = UDim2.fromOffset(length, 2)
-                TracerLine.Position = UDim2.fromOffset(mid.X, mid.Y)
-                TracerLine.Rotation = angle
-                TracerLine.Visible = true
-            else
-                TracerLine.Visible = false
-            end
+-- 追踪线更新（修复偏移 + 位置选择）
+if SilentAimSettings.ShowTracer and currentTargetPart then
+    local targetWorldPos = currentTargetPart.Position + Vector3.new(0, SilentAimSettings.Tracer_Y_Offset, 0)
+    local targetScreenPos, onScreen = getPositionOnScreen(targetWorldPos)
+    if onScreen then
+        local startPos
+        if Options.TracerPositionDropdown.Value == "中间" then
+            startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
         else
-            TracerLine.Visible = false
+            startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
         end
+        local endPos = targetScreenPos
+        local diff = endPos - startPos
+        local length = diff.Magnitude
+        local mid = (startPos + endPos) / 2
+        local angle = math.deg(math.atan2(diff.Y, diff.X))
+        TracerLine.Size = UDim2.fromOffset(length, 2)
+        TracerLine.Position = UDim2.fromOffset(mid.X, mid.Y)
+        TracerLine.Rotation = angle
+        TracerLine.Visible = true
+    else
+        TracerLine.Visible = false
+    end
+else
+    TracerLine.Visible = false
+end
 
         -- 目标指示器更新
         if SilentAimSettings.ShowSilentAimTarget and currentTargetPart then
