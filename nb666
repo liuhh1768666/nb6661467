@@ -1,3 +1,4 @@
+-- ===== 原脚本开始 =====
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua", true))()
 
 if not game:IsLoaded() then
@@ -229,6 +230,7 @@ local ValidTargetParts = {"Head", "HumanoidRootPart"}
 local PredictionAmount = 0.165
 
 local currentTargetPart = nil
+local currentTargetCharacter = nil  -- 移出主循环，供节流使用
 local currentHighlight = nil
 local currentRotationAngle = 0
 local currentIndicatorHue = 0
@@ -241,6 +243,10 @@ local lastTriggerTime = 0
 local aaRotation = 0
 local isAimlockActiveByButton = false
 local aimlockHoldCoroutine = nil
+
+-- 性能优化：目标更新节流
+local lastTargetUpdate = 0
+local TARGET_UPDATE_INTERVAL = 0.1  -- 每0.1秒重新扫描目标
 
 -- ===== 完全移除 Drawing，全部改用 GUI =====
 
@@ -887,7 +893,7 @@ MethodBox:AddSlider('HeadshotChanceSlider', { Text = '爆头概率', Default = S
 
 -- ===== 自动扳机 (Triggerbot) =====
 local TriggerbotBox = Tabs.Main:AddLeftGroupbox("自动扳机 (Triggerbot)")
-local MobileTriggerGui, MobileTriggerButton, MTStroke, ClickDebugDot
+local MobileTriggerGui, MobileTriggerButton, MTStroke
 TriggerbotBox:AddToggle("TriggerbotToggle", { Text = "启用自动扳机", Default = SilentAimSettings.TriggerbotEnabled }):OnChanged(function(Value)
     SilentAimSettings.TriggerbotEnabled = Value
     if MobileTriggerButton then
@@ -923,7 +929,6 @@ TriggerbotBox:AddButton("重置按钮位置 (居中)", function()
 end)
 TriggerbotBox:AddSlider("TriggerClickOffsetX", { Text = "点击X轴偏移 (微调)", Min = -500, Max = 500, Default = SilentAimSettings.TriggerbotOffsetX, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotOffsetX = Value end)
 TriggerbotBox:AddSlider("TriggerClickOffsetY", { Text = "点击Y轴偏移 (微调)", Min = -500, Max = 500, Default = SilentAimSettings.TriggerbotOffsetY, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotOffsetY = Value end)
-TriggerbotBox:AddToggle("ShowClickDebug", { Text = "显示实际点击位置 (红点)", Default = SilentAimSettings.ShowClickDebug }):OnChanged(function(Value) SilentAimSettings.ShowClickDebug = Value end)
 
 do
     MobileTriggerGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
@@ -994,15 +999,6 @@ do
             end
         end
     end)
-
-    ClickDebugDot = Instance.new("Frame", MobileTriggerGui)
-    ClickDebugDot.Name = "ClickDebugDot"
-    ClickDebugDot.Size = UDim2.fromOffset(8, 8)
-    ClickDebugDot.AnchorPoint = Vector2.new(0.5, 0.5)
-    ClickDebugDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    ClickDebugDot.ZIndex = 9999
-    Instance.new("UICorner", ClickDebugDot).CornerRadius = UDim.new(1, 0)
-    ClickDebugDot.Visible = false
 end
 
 -- ===== 自瞄 (Aimlock) =====
@@ -1481,6 +1477,7 @@ DesyncTab:AddToggle("DesyncVisToggle", { Text = "显示虚假残影", Default = 
 Toggles.DesyncVisToggle:OnChanged(function(Value) SilentAimSettings.Desync_Visualize = Value end)
 Options.DesyncVisColor:OnChanged(function(Value) SilentAimSettings.Desync_Color = Value end)
 
+-- 修复连跳按钮显示
 BhopTab:AddToggle("AutoBhopToggle", { Text = "启用自动连跳", Default = SilentAimSettings.AutoBhopEnabled }):OnChanged(function(value)
     SilentAimSettings.AutoBhopEnabled = value
     local btn = getgenv().MobileBhopButton
@@ -1493,7 +1490,6 @@ BhopTab:AddToggle("AutoBhopToggle", { Text = "启用自动连跳", Default = Sil
         end
     end
 end)
-
 BhopTab:AddSlider("BhopBoostSlider", { Text = "连跳空中加速力度", Default = 0, Min = 0, Max = 100, Rounding = 0 }):OnChanged(function(value) SilentAimSettings.BhopBoostAmount = value end)
 BhopTab:AddToggle("ShowMobileBhopButton", { Text = "显示连跳悬浮窗 (移动端)", Default = SilentAimSettings.ShowMobileBhopButton }):OnChanged(function(Value)
     SilentAimSettings.ShowMobileBhopButton = Value
@@ -1505,7 +1501,10 @@ BhopTab:AddToggle("PinMobileBhopButton", { Text = "锁定连跳按钮位置", De
 BhopTab:AddButton("重置连跳按钮位置 (居中偏右)", function()
     local screenSize = Camera.ViewportSize
     local newX = math.floor(screenSize.X / 2 + 80); local newY = math.floor(screenSize.Y / 2)
-    MobileBhopButton.Position = UDim2.fromOffset(newX, newY); SilentAimSettings.MobileBhopButtonPosition = newX .. "," .. newY
+    if getgenv().MobileBhopButton then
+        getgenv().MobileBhopButton.Position = UDim2.fromOffset(newX, newY)
+    end
+    SilentAimSettings.MobileBhopButtonPosition = newX .. "," .. newY
 end)
 
 local RadarGroup = Tabs.Misc:AddRightGroupbox("雷达图 (Radar Beta)")
@@ -1583,11 +1582,15 @@ MobileBhopButton.Name = "BhopButton"; MobileBhopButton.AnchorPoint = Vector2.new
 MobileBhopButton.Size = UDim2.fromOffset(SilentAimSettings.TriggerbotButtonSize, SilentAimSettings.TriggerbotButtonSize)
 MobileBhopButton.BackgroundColor3 = Color3.fromRGB(20,20,20); MobileBhopButton.BackgroundTransparency = 0.2; MobileBhopButton.BorderSizePixel = 0
 MobileBhopButton.Text = "自动连跳\n[关]"; MobileBhopButton.TextColor3 = Color3.fromRGB(255,80,80); MobileBhopButton.Font = Enum.Font.GothamBold; MobileBhopButton.TextSize = 13
-MobileBhopButton.Visible = false; MobileBhopButton.Active = true
+MobileBhopButton.Visible = SilentAimSettings.ShowMobileBhopButton  -- 同步初始显示
+MobileBhopButton.Active = true
 local MBHCorner = Instance.new("UICorner", MobileBhopButton); MBHCorner.CornerRadius = UDim.new(0,12)
 local MBHStroke = Instance.new("UIStroke", MobileBhopButton); MBHStroke.Color = Color3.fromRGB(255,80,80); MBHStroke.Thickness = 2; MBHStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- 全局引用（修复回调中使用）
 getgenv().MobileBhopButton = MobileBhopButton
 getgenv().MBHStroke = MBHStroke
+
 local isDraggingBhop = false; local dragInputBhop, dragStartBhop, startPosBhop
 MobileBhopButton.InputBegan:Connect(function(input)
     if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
@@ -2140,89 +2143,94 @@ resume(create(function()
         local isEnabled = Toggles.EnabledToggle.Value
         local aimlockActive = Toggles.AimlockToggle.Value or isAimlockActiveByButton
         local isTargeting = isEnabled or aimlockActive or Toggles.TriggerbotToggle.Value
-        currentTargetPart = nil
-        local currentTargetCharacter = nil
 
-        -- 目标选择
-        if isTargeting then
-            if lockedTargetObject then
-                if lockedTargetObject.Parent and not isBlacklisted(lockedTargetObject.Name) then
-                    if lockedTargetObject:IsA("Player") then
-                        currentTargetCharacter = lockedTargetObject.Character
-                    elseif lockedTargetObject:IsA("Model") then
-                        currentTargetCharacter = lockedTargetObject
-                    end
-                else
-                    lockedTargetObject = nil; Options.TargetSelectorDropdown:SetValue("无")
-                end
-            else
-                local overrideTarget = nil
-                if aimlockActive and SilentAimSettings.LockOnAimed then
-                    overrideTarget = getTargetAimingAtUs()
-                end
-                if overrideTarget then
-                    currentTargetCharacter = overrideTarget
-                else
-                    local targetMode = SilentAimSettings.TargetMode
-                    local playerTarget, npcTarget
-                    if targetMode == "玩家" or targetMode == "所有" then playerTarget = getClosestPlayer() end
-                    if targetMode == "NPC" or targetMode == "所有" then npcTarget = getNPCTarget() end
-                    if playerTarget and npcTarget then
-                        local priority = SilentAimSettings.PriorityMode
-                        if priority == "最低血量" then
-                            local pHumanoid = playerTarget:FindFirstChildOfClass("Humanoid")
-                            local nHumanoid = npcTarget:FindFirstChildOfClass("Humanoid")
-                            currentTargetCharacter = (pHumanoid and nHumanoid and pHumanoid.Health <= nHumanoid.Health) and playerTarget or npcTarget
-                        else
-                            local pDist = (LocalPlayer.Character.HumanoidRootPart.Position - playerTarget.HumanoidRootPart.Position).Magnitude
-                            local nDist = (LocalPlayer.Character.HumanoidRootPart.Position - npcTarget.HumanoidRootPart.Position).Magnitude
-                            currentTargetCharacter = pDist < nDist and playerTarget or npcTarget
+        -- 性能优化：目标更新节流，每0.1秒重新扫描，其余帧使用缓存
+        if tick() - lastTargetUpdate >= TARGET_UPDATE_INTERVAL then
+            lastTargetUpdate = tick()
+            currentTargetPart = nil
+
+            -- 目标选择
+            if isTargeting then
+                if lockedTargetObject then
+                    if lockedTargetObject.Parent and not isBlacklisted(lockedTargetObject.Name) then
+                        if lockedTargetObject:IsA("Player") then
+                            currentTargetCharacter = lockedTargetObject.Character
+                        elseif lockedTargetObject:IsA("Model") then
+                            currentTargetCharacter = lockedTargetObject
                         end
                     else
-                        currentTargetCharacter = playerTarget or npcTarget
+                        lockedTargetObject = nil; Options.TargetSelectorDropdown:SetValue("无")
+                    end
+                else
+                    local overrideTarget = nil
+                    if aimlockActive and SilentAimSettings.LockOnAimed then
+                        overrideTarget = getTargetAimingAtUs()
+                    end
+                    if overrideTarget then
+                        currentTargetCharacter = overrideTarget
+                    else
+                        local targetMode = SilentAimSettings.TargetMode
+                        local playerTarget, npcTarget
+                        if targetMode == "玩家" or targetMode == "所有" then playerTarget = getClosestPlayer() end
+                        if targetMode == "NPC" or targetMode == "所有" then npcTarget = getNPCTarget() end
+                        if playerTarget and npcTarget then
+                            local priority = SilentAimSettings.PriorityMode
+                            if priority == "最低血量" then
+                                local pHumanoid = playerTarget:FindFirstChildOfClass("Humanoid")
+                                local nHumanoid = npcTarget:FindFirstChildOfClass("Humanoid")
+                                currentTargetCharacter = (pHumanoid and nHumanoid and pHumanoid.Health <= nHumanoid.Health) and playerTarget or npcTarget
+                            else
+                                local pDist = (LocalPlayer.Character.HumanoidRootPart.Position - playerTarget.HumanoidRootPart.Position).Magnitude
+                                local nDist = (LocalPlayer.Character.HumanoidRootPart.Position - npcTarget.HumanoidRootPart.Position).Magnitude
+                                currentTargetCharacter = pDist < nDist and playerTarget or npcTarget
+                            end
+                        else
+                            currentTargetCharacter = playerTarget or npcTarget
+                        end
                     end
                 end
             end
-        end
 
-        if currentTargetCharacter ~= lastTargetCharacter then lockedRandomPart = nil end
-        lastTargetCharacter = currentTargetCharacter
+            if currentTargetCharacter ~= lastTargetCharacter then lockedRandomPart = nil end
+            lastTargetCharacter = currentTargetCharacter
 
-        if currentTargetCharacter then
-            local humanoid = currentTargetCharacter:FindFirstChildOfClass("Humanoid")
-            if not humanoid or humanoid.Health <= 0 then
-                if lockedTargetObject and lockedTargetObject:IsA("Model") and lockedTargetObject == currentTargetCharacter then
-                    lockedTargetObject = nil; Options.TargetSelectorDropdown:SetValue("无")
-                end
-                currentTargetCharacter = nil; currentTargetPart = nil
-            else
-                local baseTargetPart = nil
-                if SilentAimSettings.LeakAndHitMode then
-                    for _, part in ipairs(currentTargetCharacter:GetDescendants()) do
-                        if part:IsA("BasePart") and part.Parent == currentTargetCharacter then
-                            if isPartVisible(part) then baseTargetPart = part; break end
-                        end
+            if currentTargetCharacter then
+                local humanoid = currentTargetCharacter:FindFirstChildOfClass("Humanoid")
+                if not humanoid or humanoid.Health <= 0 then
+                    if lockedTargetObject and lockedTargetObject:IsA("Model") and lockedTargetObject == currentTargetCharacter then
+                        lockedTargetObject = nil; Options.TargetSelectorDropdown:SetValue("无")
                     end
-                else
-                    local targetPartName = SilentAimSettings.TargetPart
-                    if targetPartName == "Random" then
-                        if not lockedRandomPart or not lockedRandomPart.Parent or lockedRandomPart.Parent ~= currentTargetCharacter then
-                            lockedRandomPart = currentTargetCharacter[ValidTargetParts[math.random(1, #ValidTargetParts)]]
-                        end
-                        baseTargetPart = lockedRandomPart
-                    else
-                        baseTargetPart = currentTargetCharacter:FindFirstChild(targetPartName) or currentTargetCharacter:FindFirstChild("HumanoidRootPart")
-                    end
-                end
-                if baseTargetPart then
-                    if SilentAimSettings.HeadshotChanceEnabled and CalculateChance(SilentAimSettings.HeadshotChance) then
-                        local headPart = currentTargetCharacter:FindFirstChild("Head")
-                        currentTargetPart = headPart or baseTargetPart
-                    else
-                        currentTargetPart = baseTargetPart
-                    end
-                else
+                    currentTargetCharacter = nil
                     currentTargetPart = nil
+                else
+                    local baseTargetPart = nil
+                    if SilentAimSettings.LeakAndHitMode then
+                        for _, part in ipairs(currentTargetCharacter:GetDescendants()) do
+                            if part:IsA("BasePart") and part.Parent == currentTargetCharacter then
+                                if isPartVisible(part) then baseTargetPart = part; break end
+                            end
+                        end
+                    else
+                        local targetPartName = SilentAimSettings.TargetPart
+                        if targetPartName == "Random" then
+                            if not lockedRandomPart or not lockedRandomPart.Parent or lockedRandomPart.Parent ~= currentTargetCharacter then
+                                lockedRandomPart = currentTargetCharacter[ValidTargetParts[math.random(1, #ValidTargetParts)]]
+                            end
+                            baseTargetPart = lockedRandomPart
+                        else
+                            baseTargetPart = currentTargetCharacter:FindFirstChild(targetPartName) or currentTargetCharacter:FindFirstChild("HumanoidRootPart")
+                        end
+                    end
+                    if baseTargetPart then
+                        if SilentAimSettings.HeadshotChanceEnabled and CalculateChance(SilentAimSettings.HeadshotChance) then
+                            local headPart = currentTargetCharacter:FindFirstChild("Head")
+                            currentTargetPart = headPart or baseTargetPart
+                        else
+                            currentTargetPart = baseTargetPart
+                        end
+                    else
+                        currentTargetPart = nil
+                    end
                 end
             end
         end
@@ -2251,32 +2259,32 @@ resume(create(function()
             end
         end
 
--- 追踪线更新（修复偏移 + 位置选择）
-if SilentAimSettings.ShowTracer and currentTargetPart then
-    local targetWorldPos = currentTargetPart.Position + Vector3.new(0, SilentAimSettings.Tracer_Y_Offset, 0)
-    local targetScreenPos, onScreen = getPositionOnScreen(targetWorldPos)
-    if onScreen then
-        local startPos
-        if Options.TracerPositionDropdown.Value == "中间" then
-            startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        -- 追踪线更新（修复偏移 + 位置选择）
+        if SilentAimSettings.ShowTracer and currentTargetPart then
+            local targetWorldPos = currentTargetPart.Position + Vector3.new(0, SilentAimSettings.Tracer_Y_Offset, 0)
+            local targetScreenPos, onScreen = getPositionOnScreen(targetWorldPos)
+            if onScreen then
+                local startPos
+                if Options.TracerPositionDropdown.Value == "中间" then
+                    startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                else
+                    startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                end
+                local endPos = targetScreenPos
+                local diff = endPos - startPos
+                local length = diff.Magnitude
+                local mid = (startPos + endPos) / 2
+                local angle = math.deg(math.atan2(diff.Y, diff.X))
+                TracerLine.Size = UDim2.fromOffset(length, 2)
+                TracerLine.Position = UDim2.fromOffset(mid.X, mid.Y)
+                TracerLine.Rotation = angle
+                TracerLine.Visible = true
+            else
+                TracerLine.Visible = false
+            end
         else
-            startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            TracerLine.Visible = false
         end
-        local endPos = targetScreenPos
-        local diff = endPos - startPos
-        local length = diff.Magnitude
-        local mid = (startPos + endPos) / 2
-        local angle = math.deg(math.atan2(diff.Y, diff.X))
-        TracerLine.Size = UDim2.fromOffset(length, 2)
-        TracerLine.Position = UDim2.fromOffset(mid.X, mid.Y)
-        TracerLine.Rotation = angle
-        TracerLine.Visible = true
-    else
-        TracerLine.Visible = false
-    end
-else
-    TracerLine.Visible = false
-end
 
         -- 目标指示器更新
         if SilentAimSettings.ShowSilentAimTarget and currentTargetPart then
@@ -2359,9 +2367,6 @@ end
                     local VIM = game:GetService("VirtualInputManager")
                     local btnX = math.floor(MobileTriggerButton.AbsolutePosition.X + (MobileTriggerButton.AbsoluteSize.X / 2)) + SilentAimSettings.TriggerbotOffsetX
                     local btnY = math.floor(MobileTriggerButton.AbsolutePosition.Y + (MobileTriggerButton.AbsoluteSize.Y / 2)) + SilentAimSettings.TriggerbotOffsetY
-                    if SilentAimSettings.ShowClickDebug and ClickDebugDot then
-                        ClickDebugDot.Position = UDim2.fromOffset(btnX, btnY); ClickDebugDot.Visible = true
-                    elseif ClickDebugDot then ClickDebugDot.Visible = false end
                     local oldVis = MobileTriggerButton.Visible
                     if oldVis then MobileTriggerButton.Visible = false end
                     if UserInputService.TouchEnabled then
