@@ -230,7 +230,7 @@ local ValidTargetParts = {"Head", "HumanoidRootPart"}
 local PredictionAmount = 0.165
 
 local currentTargetPart = nil
-local currentTargetCharacter = nil  -- 移出主循环，供节流使用
+local currentTargetCharacter = nil
 local currentHighlight = nil
 local currentRotationAngle = 0
 local currentIndicatorHue = 0
@@ -244,9 +244,11 @@ local aaRotation = 0
 local isAimlockActiveByButton = false
 local aimlockHoldCoroutine = nil
 
--- 性能优化：目标更新节流
+-- 性能优化变量
 local lastTargetUpdate = 0
-local TARGET_UPDATE_INTERVAL = 0.1  -- 每0.1秒重新扫描目标
+local TARGET_UPDATE_INTERVAL = 0.15  -- 目标选择0.15秒更新一次
+local RadarLastUpdate = 0
+local RADAR_UPDATE_INTERVAL = 0.15  -- 雷达0.15秒更新一次
 
 -- ===== 完全移除 Drawing，全部改用 GUI =====
 
@@ -546,7 +548,7 @@ local HitSounds = {
 
 local rainbowColor = Color3.fromHSV(0, 1, 1)
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.1) do  -- 彩虹颜色每0.1秒更新
         if Library and Library.Unloaded then break end
         local hue = (tick() % 6) / 6
         rainbowColor = Color3.fromHSV(hue, 1, 1)
@@ -1745,7 +1747,7 @@ SensoryChamsBox:AddSlider("SensoryChamsFillTransparency", {Text="Chams 填充透
 SensoryChamsBox:AddSlider("SensoryChamsOutlineTransparency", {Text="Chams 描边透明度", Min=0, Max=1, Default=SensoryESPConfig.Chams.Highlight.OutlineTransparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.OutlineTransparency=v; SensoryESPConfig.Chams.MeshChams.OutlineTransparency=v end)
 SensoryChamsBox:AddToggle("SensoryChamsAlwaysTop", {Text="始终置顶", Default=SensoryESPConfig.Chams.Adornment.AlwaysOnTop}):OnChanged(function(v) SensoryESPConfig.Chams.Adornment.AlwaysOnTop=v end)
 
--- ===== 独立 GUI 骨骼绘制模块（优化版 + 队伍检查联动） =====
+-- ===== 独立 GUI 骨骼绘制模块（优化版 + 队伍检查联动 + 20FPS） =====
 do
     local BoneGui = Instance.new("ScreenGui")
     BoneGui.Name = "BoneGui"
@@ -1931,7 +1933,7 @@ do
         end
     end
 
-    local UPDATE_INTERVAL = 1 / 30
+    local UPDATE_INTERVAL = 1 / 30  -- 骨骼更新30 FPS
     local lastUpdateTime = 0
 
     local renderConnection
@@ -2109,7 +2111,7 @@ local ay = tonumber(posAimlock[2]) or (Camera.ViewportSize.Y / 2)
 MobileAimlockButton.Position = UDim2.fromOffset(ax, ay)
 
 task.spawn(function()
-    while task.wait(2) do
+    while task.wait(2) do  -- NPC扫描保持2秒，不变
         if SilentAimSettings.TargetMode == "NPC" or SilentAimSettings.TargetMode == "所有" then updateNPCs() end
     end
 end)
@@ -2144,7 +2146,7 @@ resume(create(function()
         local aimlockActive = Toggles.AimlockToggle.Value or isAimlockActiveByButton
         local isTargeting = isEnabled or aimlockActive or Toggles.TriggerbotToggle.Value
 
-        -- 性能优化：目标更新节流，每0.1秒重新扫描，其余帧使用缓存
+        -- 性能优化：目标更新节流0.15秒
         if tick() - lastTargetUpdate >= TARGET_UPDATE_INTERVAL then
             lastTargetUpdate = tick()
             currentTargetPart = nil
@@ -2421,50 +2423,53 @@ resume(create(function()
             end
         end
 
-        -- 雷达渲染
+        -- 雷达渲染（节流0.15秒）
         if SilentAimSettings.RadarEnabled and RadarBG and RadarBG.Visible then
-            local myChar = LocalPlayer.Character; local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            if myRoot then
-                local myPos = myRoot.Position
-                local camLook = Camera.CFrame.LookVector
-                local camYaw = math.atan2(-camLook.X, -camLook.Z)
-                local targets = {}
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= LocalPlayer and p.Character then
-                        if not (SilentAimSettings.TeamCheck and p.Team == LocalPlayer.Team) then table.insert(targets, p.Character) end
-                    end
-                end
-                for _, n in ipairs(npcList) do
-                    if not SilentAimSettings.AdvancedFiltering or isWhitelisted(n) then table.insert(targets, n) end
-                end
-                local activeBlips = {}
-                for _, char in ipairs(targets) do
-                    local hum = char:FindFirstChild("Humanoid"); local root = char:FindFirstChild("HumanoidRootPart")
-                    if hum and hum.Health > 0 and root then
-                        local diff = root.Position - myPos; local dist = diff.Magnitude
-                        if dist <= SilentAimSettings.RadarRange then
-                            local relX = diff.X; local relZ = diff.Z
-                            local rotX = relX * math.cos(camYaw) - relZ * math.sin(camYaw)
-                            local rotZ = relX * math.sin(camYaw) + relZ * math.cos(camYaw)
-                            local scale = (RadarBG.AbsoluteSize.X / 2) / SilentAimSettings.RadarRange
-                            activeBlips[char] = {rotX * scale, rotZ * scale}
+            if tick() - RadarLastUpdate >= RADAR_UPDATE_INTERVAL then
+                RadarLastUpdate = tick()
+                local myChar = LocalPlayer.Character; local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                if myRoot then
+                    local myPos = myRoot.Position
+                    local camLook = Camera.CFrame.LookVector
+                    local camYaw = math.atan2(-camLook.X, -camLook.Z)
+                    local targets = {}
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if p ~= LocalPlayer and p.Character then
+                            if not (SilentAimSettings.TeamCheck and p.Team == LocalPlayer.Team) then table.insert(targets, p.Character) end
                         end
                     end
-                end
-                for char, pos2d in pairs(activeBlips) do
-                    local blip = radarBlips[char]
-                    if not blip then
-                        blip = Instance.new("Frame", RadarBG)
-                        blip.Size = UDim2.fromOffset(4,4); blip.AnchorPoint = Vector2.new(0.5,0.5)
-                        blip.BackgroundColor3 = Color3.new(1,0,0)
-                        Instance.new("UICorner", blip).CornerRadius = UDim.new(1,0)
-                        radarBlips[char] = blip
+                    for _, n in ipairs(npcList) do
+                        if not SilentAimSettings.AdvancedFiltering or isWhitelisted(n) then table.insert(targets, n) end
                     end
-                    blip.Position = UDim2.new(0.5, pos2d[1], 0.5, pos2d[2])
-                    blip.Visible = true
-                end
-                for char, blip in pairs(radarBlips) do
-                    if not activeBlips[char] then blip.Visible = false end
+                    local activeBlips = {}
+                    for _, char in ipairs(targets) do
+                        local hum = char:FindFirstChild("Humanoid"); local root = char:FindFirstChild("HumanoidRootPart")
+                        if hum and hum.Health > 0 and root then
+                            local diff = root.Position - myPos; local dist = diff.Magnitude
+                            if dist <= SilentAimSettings.RadarRange then
+                                local relX = diff.X; local relZ = diff.Z
+                                local rotX = relX * math.cos(camYaw) - relZ * math.sin(camYaw)
+                                local rotZ = relX * math.sin(camYaw) + relZ * math.cos(camYaw)
+                                local scale = (RadarBG.AbsoluteSize.X / 2) / SilentAimSettings.RadarRange
+                                activeBlips[char] = {rotX * scale, rotZ * scale}
+                            end
+                        end
+                    end
+                    for char, pos2d in pairs(activeBlips) do
+                        local blip = radarBlips[char]
+                        if not blip then
+                            blip = Instance.new("Frame", RadarBG)
+                            blip.Size = UDim2.fromOffset(4,4); blip.AnchorPoint = Vector2.new(0.5,0.5)
+                            blip.BackgroundColor3 = Color3.new(1,0,0)
+                            Instance.new("UICorner", blip).CornerRadius = UDim.new(1,0)
+                            radarBlips[char] = blip
+                        end
+                        blip.Position = UDim2.new(0.5, pos2d[1], 0.5, pos2d[2])
+                        blip.Visible = true
+                    end
+                    for char, blip in pairs(radarBlips) do
+                        if not activeBlips[char] then blip.Visible = false end
+                    end
                 end
             end
         end
