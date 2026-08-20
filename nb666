@@ -1,43 +1,22 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua", true))()
+task.spawn(function()
+    pcall(function()
+        local AnalyticsPipeline = require(game:GetService("ReplicatedFirst"):WaitForChild("AnalyticsPipelineController"):WaitForChild("AnalyticsPipeline"))
+        hookfunction(AnalyticsPipeline, function() end)
+    end)
+end)
 
-if not game:IsLoaded() then
-    game.Loaded:Wait()
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua", true))()
+end)
+
+if not getmetatable or not setmetatable or not type or not select or type(select(2, pcall(getmetatable, setmetatable({}, {__index = function(self, ...) while true do end end})))['__index']) ~= 'function' or not pcall or not debug or not rawget or not rawset or not pcall(rawset,{}," "," ") or not select or not getfenv or select(1, pcall(getfenv, 69)) == true or not select(2, pcall(rawget, debug, "info")) or #(((select(2, pcall(rawget, debug, "info")))(getfenv, "n")))<=1 or #(((select(2, pcall(rawget, debug, "info")))(print, "n")))<=1 or not (select(2, pcall(rawget, debug, "info")))(print, "s") == "[C]" or not (select(2, pcall(rawget, debug, "info")))(require, "s") == "[C]" or (select(2, pcall(rawget, debug, "info")))((function()end), "s") == "[C]" then
+  return REVEAL_HINT_STACK and tostring(ANTI_ENV_LOG_MESSAGE) or nil
 end
 
 if not syn or not protectgui then
     getgenv().protectgui = function() end
 end
 
--- ===== 绕过代码 =====
-task.spawn(function()
-    local x, y
-    setthreadidentity(2)
-    for i, v in getgc(true) do
-        if typeof(v) == "table" then
-            local a = rawget(v, "Detected")
-            local b = rawget(v, "Kill")
-            if typeof(a) == "function" and not x then
-                x = a
-                local o; o = hookfunction(x, function(c, f, n)
-                    if c ~= "_" then end
-                    return true
-                end)
-            end
-            if rawget(v, "Variables") and rawget(v, "Process") and typeof(b) == "function" and not y then
-                y = b
-                local o; o = hookfunction(y, function(f) end)
-            end
-        end
-    end
-    local o; o = hookfunction(getrenv().debug.info, newcclosure(function(...)
-        local a, f = ...
-        if x and a == x then
-            return coroutine.yield(coroutine.running())
-        end
-        return o(...)
-    end))
-    setthreadidentity(7)
-end)
 -- ===== 绕过结束 =====
 
 local SilentAimSettings = {
@@ -887,7 +866,7 @@ MethodBox:AddSlider('HeadshotChanceSlider', { Text = '爆头概率', Default = S
 
 -- ===== 自动扳机 (Triggerbot) =====
 local TriggerbotBox = Tabs.Main:AddLeftGroupbox("自动扳机 (Triggerbot)")
-local MobileTriggerGui, MobileTriggerButton, MTStroke
+local MobileTriggerGui, MobileTriggerButton, MTStroke, ClickDebugDot
 TriggerbotBox:AddToggle("TriggerbotToggle", { Text = "启用自动扳机", Default = SilentAimSettings.TriggerbotEnabled }):OnChanged(function(Value)
     SilentAimSettings.TriggerbotEnabled = Value
     if MobileTriggerButton then
@@ -923,6 +902,7 @@ TriggerbotBox:AddButton("重置按钮位置 (居中)", function()
 end)
 TriggerbotBox:AddSlider("TriggerClickOffsetX", { Text = "点击X轴偏移 (微调)", Min = -500, Max = 500, Default = SilentAimSettings.TriggerbotOffsetX, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotOffsetX = Value end)
 TriggerbotBox:AddSlider("TriggerClickOffsetY", { Text = "点击Y轴偏移 (微调)", Min = -500, Max = 500, Default = SilentAimSettings.TriggerbotOffsetY, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotOffsetY = Value end)
+TriggerbotBox:AddToggle("ShowClickDebug", { Text = "显示实际点击位置 (红点)", Default = SilentAimSettings.ShowClickDebug }):OnChanged(function(Value) SilentAimSettings.ShowClickDebug = Value end)
 
 do
     MobileTriggerGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
@@ -952,6 +932,23 @@ do
     MTStroke.Color = Color3.fromRGB(255, 80, 80)
     MTStroke.Thickness = 2
     MTStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    -- 红点独立GUI
+    local RedDotGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    RedDotGui.Name = "RedDotGui"
+    RedDotGui.ResetOnSpawn = false
+    RedDotGui.IgnoreGuiInset = true
+    RedDotGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    ClickDebugDot = Instance.new("Frame", RedDotGui)
+    ClickDebugDot.Name = "ClickDebugDot"
+    ClickDebugDot.Size = UDim2.fromOffset(10, 10)
+    ClickDebugDot.AnchorPoint = Vector2.new(0.5, 0.5)
+    ClickDebugDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    ClickDebugDot.BorderSizePixel = 0
+    ClickDebugDot.ZIndex = 9999
+    ClickDebugDot.Visible = false
+    Instance.new("UICorner", ClickDebugDot).CornerRadius = UDim.new(1, 0)
 
     local isDraggingTrigger = false
     local dragInputTrigger, dragStartTrigger, startPosTrigger
@@ -1117,12 +1114,6 @@ ExtrasBox:AddDropdown("TracerPositionDropdown", {
 Toggles.ShowTracerToggle:OnChanged(function(Value) SilentAimSettings.ShowTracer = Value end)
 Options.TracerColorPicker:OnChanged(function(Value) TracerLine.BackgroundColor3 = Value end)
 ExtrasBox:AddSlider('TracerYOffsetSlider', { Text = '追踪线Y轴偏移', Default = SilentAimSettings.Tracer_Y_Offset, Min = -10, Max = 10, Rounding = 3, Suffix = " studs" }):OnChanged(function(Value) SilentAimSettings.Tracer_Y_Offset = Value end)
-ExtrasBox:AddButton("恢复默认Y轴偏移", function()
-    SilentAimSettings.Tracer_Y_Offset = 0
-    if Options.TracerYOffsetSlider then
-        Options.TracerYOffsetSlider:SetValue(0)
-    end
-end)
 
 -- ===== 管理 (Management) =====
 local ManualLockGroupBox = Tabs.Management:AddLeftGroupbox("手动锁定")
@@ -1297,18 +1288,17 @@ end)
 LocalPlayer.CharacterAdded:Connect(function(character)
     if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
         task.defer(function()
-            task.wait(0.5)  -- 等待相机系统初始化
+            task.wait(0.5)
             applyThirdPerson()
         end)
     end
 end)
 
--- 初始状态同步（防止脚本重载时开关状态丢失）
+-- 初始状态同步
 if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
     applyThirdPerson()
 end
 
--- 可选距离滑块
 ThirdPersonGroup:AddSlider("ThirdPersonDistance", {
     Text = "最大距离",
     Min = 0,
@@ -1471,7 +1461,6 @@ DesyncTab:AddToggle("DesyncVisToggle", { Text = "显示虚假残影", Default = 
 Toggles.DesyncVisToggle:OnChanged(function(Value) SilentAimSettings.Desync_Visualize = Value end)
 Options.DesyncVisColor:OnChanged(function(Value) SilentAimSettings.Desync_Color = Value end)
 
--- 修复连跳按钮显示
 BhopTab:AddToggle("AutoBhopToggle", { Text = "启用自动连跳", Default = SilentAimSettings.AutoBhopEnabled }):OnChanged(function(value)
     SilentAimSettings.AutoBhopEnabled = value
     local btn = getgenv().MobileBhopButton
@@ -1505,7 +1494,7 @@ local RadarGroup = Tabs.Misc:AddRightGroupbox("雷达图 (Radar Beta)")
 RadarGroup:AddToggle("RadarEnabled", { Text = "显示雷达图", Default = false }):OnChanged(function(v) 
     SilentAimSettings.RadarEnabled = v
     if RadarBG then
-        RadarBG.Visible = v  -- 修复：开启时显示雷达背景
+        RadarBG.Visible = v
     end
     RadarGui.Enabled = v
 end)
@@ -1576,12 +1565,9 @@ MobileBhopButton.Name = "BhopButton"; MobileBhopButton.AnchorPoint = Vector2.new
 MobileBhopButton.Size = UDim2.fromOffset(SilentAimSettings.TriggerbotButtonSize, SilentAimSettings.TriggerbotButtonSize)
 MobileBhopButton.BackgroundColor3 = Color3.fromRGB(20,20,20); MobileBhopButton.BackgroundTransparency = 0.2; MobileBhopButton.BorderSizePixel = 0
 MobileBhopButton.Text = "自动连跳\n[关]"; MobileBhopButton.TextColor3 = Color3.fromRGB(255,80,80); MobileBhopButton.Font = Enum.Font.GothamBold; MobileBhopButton.TextSize = 13
-MobileBhopButton.Visible = SilentAimSettings.ShowMobileBhopButton  -- 同步初始显示
-MobileBhopButton.Active = true
+MobileBhopButton.Visible = SilentAimSettings.ShowMobileBhopButton; MobileBhopButton.Active = true
 local MBHCorner = Instance.new("UICorner", MobileBhopButton); MBHCorner.CornerRadius = UDim.new(0,12)
 local MBHStroke = Instance.new("UIStroke", MobileBhopButton); MBHStroke.Color = Color3.fromRGB(255,80,80); MBHStroke.Thickness = 2; MBHStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
--- 全局引用（修复回调中使用）
 getgenv().MobileBhopButton = MobileBhopButton
 getgenv().MBHStroke = MBHStroke
 
@@ -2120,6 +2106,8 @@ local sX = tonumber(posTrigger[1]) or (Camera.ViewportSize.X / 2)
 local sY = tonumber(posTrigger[2]) or (Camera.ViewportSize.Y / 2)
 MobileTriggerButton.Position = UDim2.fromOffset(sX, sY)
 
+if ClickDebugDot then ClickDebugDot.Visible = false end
+
 local lastTargetCharacter = nil
 local lockedRandomPart = nil
 
@@ -2224,7 +2212,7 @@ resume(create(function()
             end
         end
 
-        -- 高亮（修复：确保开关关闭时销毁）
+        -- 高亮
         if currentHighlight and (not currentTargetCharacter or not SilentAimSettings.HighlightEnabled or not isEnabled) then
             currentHighlight:Destroy()
             currentHighlight = nil
@@ -2356,6 +2344,19 @@ resume(create(function()
                     local VIM = game:GetService("VirtualInputManager")
                     local btnX = math.floor(MobileTriggerButton.AbsolutePosition.X + (MobileTriggerButton.AbsoluteSize.X / 2)) + SilentAimSettings.TriggerbotOffsetX
                     local btnY = math.floor(MobileTriggerButton.AbsolutePosition.Y + (MobileTriggerButton.AbsoluteSize.Y / 2)) + SilentAimSettings.TriggerbotOffsetY
+                    if SilentAimSettings.ShowClickDebug and ClickDebugDot then
+                        ClickDebugDot.Position = UDim2.fromOffset(btnX, btnY)
+                        ClickDebugDot.Visible = true
+                        task.delay(0.15, function()
+                            if ClickDebugDot then
+                                ClickDebugDot.Visible = false
+                            end
+                        end)
+                    else
+                        if ClickDebugDot then
+                            ClickDebugDot.Visible = false
+                        end
+                    end
                     local oldVis = MobileTriggerButton.Visible
                     if oldVis then MobileTriggerButton.Visible = false end
                     if UserInputService.TouchEnabled then
@@ -2566,6 +2567,9 @@ Library:OnUnload(function()
     if DesyncRenderConnection then DesyncRenderConnection:Disconnect() end
     if BhopConnection then BhopConnection:Disconnect() end
     if getgenv().CleanBoneESP then getgenv().CleanBoneESP() end
+    if ClickDebugDot and ClickDebugDot.Parent then
+        ClickDebugDot.Parent:Destroy()
+    end
     hideAllVisuals()
     oldNamecall:UnHook()
     oldIndex:UnHook()
