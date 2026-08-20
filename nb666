@@ -1,0 +1,2585 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua", true))()
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+if not syn or not protectgui then
+    getgenv().protectgui = function() end
+end
+
+-- ===== 绕过代码 =====
+task.spawn(function()
+    local x, y
+    setthreadidentity(2)
+    for i, v in getgc(true) do
+        if typeof(v) == "table" then
+            local a = rawget(v, "Detected")
+            local b = rawget(v, "Kill")
+            if typeof(a) == "function" and not x then
+                x = a
+                local o; o = hookfunction(x, function(c, f, n)
+                    if c ~= "_" then end
+                    return true
+                end)
+            end
+            if rawget(v, "Variables") and rawget(v, "Process") and typeof(b) == "function" and not y then
+                y = b
+                local o; o = hookfunction(y, function(f) end)
+            end
+        end
+    end
+    local o; o = hookfunction(getrenv().debug.info, newcclosure(function(...)
+        local a, f = ...
+        if x and a == x then
+            return coroutine.yield(coroutine.running())
+        end
+        return o(...)
+    end))
+    setthreadidentity(7)
+end)
+-- ===== 绕过结束 =====
+
+local SilentAimSettings = {
+    Enabled = false,
+    ClassName = "Universal Silent Aim",
+    ToggleKey = "RightAlt",
+    TeamCheck = false,
+    VisibleCheck = false,
+    TargetPart = "HumanoidRootPart",
+    SilentAimMethod = "Raycast",
+    FOVRadius = 130,
+    FOVVisible = true,
+    ShowSilentAimTarget = false,
+    MouseHitPrediction = false,
+    MouseHitPredictionAmount = 0.165,
+    HitChance = 100,
+    HeadshotChanceEnabled = false,
+    HeadshotChance = 0,
+    FixedFOV = true,
+    TargetIndicatorRadius = 20,
+    CrosshairLength = 30,
+    CrosshairGap = 5,
+    IndicatorRotationEnabled = false,
+    IndicatorRotationSpeed = 1,
+    IndicatorRainbowEnabled = false,
+    IndicatorRainbowSpeed = 1,
+    MaxDistance = 500,
+    PriorityMode = "准星最近",
+    TargetInfoStyle = "面板",
+    ShowTargetName = true,
+    ShowTargetHealth = true,
+    ShowTargetDistance = true,
+    ShowTargetCategory = false,
+    ShowDamageNotifier = false,
+    HighlightEnabled = false,
+    HighlightRainbowEnabled = false,
+    HighlightColor = Color3.fromRGB(255, 255, 0),
+    IndependentPanelPosition = "200,200",
+    IndependentPanelPinned = false,
+    LeakAndHitMode = false,
+    Wallbang = false,
+    EnableNameTargeting = false,
+    WhitelistedNames = {},
+    BlacklistedNames = {},
+    ShowTracer = false,
+    Tracer_Y_Offset = 0,
+    WhitelistPath = {},
+    IndicatorBreathingEnabled = true,
+    IndicatorBreathingSpeed = 1,
+    IndicatorBreathingMin = 0.8,
+    IndicatorBreathingMax = 1.2,
+    ThreeLineCrosshairEnabled = true,
+    ThreeLineCrosshairLength = 30,
+    ThreeLineCrosshairGap = 5,
+    TargetMode = "所有",
+    -- ===== 自动扳机 =====
+    TriggerbotEnabled = false,
+    TriggerbotCPS = 10,
+    ShowMobileTriggerButton = false,
+    MobileTriggerButtonPosition = "0,0",
+    MobileTriggerButtonPinned = false,
+    TriggerbotButtonSize = 65,
+    TriggerbotOffsetX = 0,
+    TriggerbotOffsetY = 0,
+    ShowClickDebug = false,
+    -- ===== 杂项 =====
+    AA_Enabled = false,
+    AA_UpsideDown = false,
+    AA_Yaw = "Backward",
+    AA_Jitter = 90,
+    Desync_Enabled = false,
+    Desync_Ticks = 3,
+    Desync_Visualize = false,
+    Desync_Color = Color3.fromRGB(255, 85, 255),
+    CharMaterialMode = "ForceField",
+    AutoBhopEnabled = false,
+    BhopBoostAmount = 0,
+    ShowMobileBhopButton = false,
+    MobileBhopButtonPosition = "0,0",
+    MobileBhopButtonPinned = false,
+    RadarEnabled = false,
+    RadarRange = 200,
+    RadarSize = 150,
+    -- ===== 自瞄 (Aimlock) =====
+    AimlockEnabled = false,
+    AimlockKey = "E",
+    AimlockSmoothness = 1,
+    AimlockSnapCamera = true,
+    AimMethod = "aimbot",
+    AimbotFOVRadius = 200,
+    AimbotPredictionFactor = 0.042,
+    AimbotAimSpeed = 10,
+    ShowMobileAimlockButton = false,
+    AimlockButtonHoldMode = true,
+    AimlockHoldTime = 0.2,
+    AimlockButtonSize = 65,
+    MobileAimlockButtonPosition = "0,0",
+    MobileAimlockButtonPinned = false,
+    LockOnAimed = false,
+    LockOnAimedWallCheck = true,
+    LockOnAimedPriority = "准星最近",
+    LockOnAimedSensitivityX = 20,
+    LockOnAimedSensitivityY = 20,
+}
+
+getgenv().SilentAimSettings = SilentAimSettings
+local MainFileName = "nb666"
+
+-- ===== 天空盒 =====
+local Lighting = game:GetService("Lighting")
+local Visuals = {}
+local Skyboxes = {}
+
+function Visuals:NewSky(Data)
+    local Name = Data.Name
+    Skyboxes[Name] = {
+        SkyboxBk = Data.SkyboxBk,
+        SkyboxDn = Data.SkyboxDn,
+        SkyboxFt = Data.SkyboxFt,
+        SkyboxLf = Data.SkyboxLf,
+        SkyboxRt = Data.SkyboxRt,
+        SkyboxUp = Data.SkyboxUp,
+        MoonTextureId = Data.Moon or "rbxasset://sky/moon.jpg",
+        SunTextureId = Data.Sun or "rbxasset://sky/sun.jpg"
+    }
+end
+
+function Visuals:SwitchSkybox(Name)
+    local OldSky = Lighting:FindFirstChildOfClass("Sky")
+    if OldSky then OldSky:Destroy() end
+    local Sky = Instance.new("Sky", Lighting)
+    for Index, Value in pairs(Skyboxes[Name]) do
+        Sky[Index] = Value
+    end
+end
+
+if Lighting:FindFirstChildOfClass("Sky") then
+    local OldSky = Lighting:FindFirstChildOfClass("Sky")
+    Visuals:NewSky({
+        Name = "Game's Default Sky",
+        SkyboxBk = OldSky.SkyboxBk,
+        SkyboxDn = OldSky.SkyboxDn,
+        SkyboxFt = OldSky.SkyboxFt,
+        SkyboxLf = OldSky.SkyboxLf,
+        SkyboxRt = OldSky.SkyboxRt,
+        SkyboxUp = OldSky.SkyboxUp
+    })
+end
+
+Visuals:NewSky({ Name = "Sunset", SkyboxBk = "rbxassetid://600830446", SkyboxDn = "rbxassetid://600831635", SkyboxFt = "rbxassetid://600832720", SkyboxLf = "rbxassetid://600886090", SkyboxRt = "rbxassetid://600833862", SkyboxUp = "rbxassetid://600835177" })
+Visuals:NewSky({ Name = "Arctic", SkyboxBk = "http://www.roblox.com/asset/?id=225469390", SkyboxDn = "http://www.roblox.com/asset/?id=225469395", SkyboxFt = "http://www.roblox.com/asset/?id=225469403", SkyboxLf = "http://www.roblox.com/asset/?id=225469450", SkyboxRt = "http://www.roblox.com/asset/?id=225469471", SkyboxUp = "http://www.roblox.com/asset/?id=225469481" })
+Visuals:NewSky({ Name = "Space", SkyboxBk = "http://www.roblox.com/asset/?id=166509999", SkyboxDn = "http://www.roblox.com/asset/?id=166510057", SkyboxFt = "http://www.roblox.com/asset/?id=166510116", SkyboxLf = "http://www.roblox.com/asset/?id=166510092", SkyboxRt = "http://www.roblox.com/asset/?id=166510131", SkyboxUp = "http://www.roblox.com/asset/?id=166510114" })
+Visuals:NewSky({ Name = "Roblox Default", SkyboxBk = "rbxasset://textures/sky/sky512_bk.tex", SkyboxDn = "rbxasset://textures/sky/sky512_dn.tex", SkyboxFt = "rbxasset://textures/sky/sky512_ft.tex", SkyboxLf = "rbxasset://textures/sky/sky512_lf.tex", SkyboxRt = "rbxasset://textures/sky/sky512_rt.tex", SkyboxUp = "rbxasset://textures/sky/sky512_up.tex" })
+Visuals:NewSky({ Name = "Red Night", SkyboxBk = "http://www.roblox.com/Asset/?ID=401664839", SkyboxDn = "http://www.roblox.com/Asset/?ID=401664862", SkyboxFt = "http://www.roblox.com/Asset/?ID=401664960", SkyboxLf = "http://www.roblox.com/Asset/?ID=401664881", SkyboxRt = "http://www.roblox.com/Asset/?ID=401664901", SkyboxUp = "http://www.roblox.com/Asset/?ID=401664936" })
+Visuals:NewSky({ Name = "Deep Space", SkyboxBk = "http://www.roblox.com/asset/?id=149397692", SkyboxDn = "http://www.roblox.com/asset/?id=149397686", SkyboxFt = "http://www.roblox.com/asset/?id=149397697", SkyboxLf = "http://www.roblox.com/asset/?id=149397684", SkyboxRt = "http://www.roblox.com/asset/?id=149397688", SkyboxUp = "http://www.roblox.com/asset/?id=149397702" })
+Visuals:NewSky({ Name = "Pink Skies", SkyboxBk = "http://www.roblox.com/asset/?id=151165214", SkyboxDn = "http://www.roblox.com/asset/?id=151165197", SkyboxFt = "http://www.roblox.com/asset/?id=151165224", SkyboxLf = "http://www.roblox.com/asset/?id=151165191", SkyboxRt = "http://www.roblox.com/asset/?id=151165206", SkyboxUp = "http://www.roblox.com/asset/?id=151165227" })
+Visuals:NewSky({ Name = "Purple Sunset", SkyboxBk = "rbxassetid://264908339", SkyboxDn = "rbxassetid://264907909", SkyboxFt = "rbxassetid://264909420", SkyboxLf = "rbxassetid://264909758", SkyboxRt = "rbxassetid://264908886", SkyboxUp = "rbxassetid://264907379" })
+Visuals:NewSky({ Name = "Blue Night", SkyboxBk = "http://www.roblox.com/Asset/?ID=12064107", SkyboxDn = "http://www.roblox.com/Asset/?ID=12064152", SkyboxFt = "http://www.roblox.com/Asset/?ID=12064121", SkyboxLf = "http://www.roblox.com/Asset/?ID=12063984", SkyboxRt = "http://www.roblox.com/Asset/?ID=12064115", SkyboxUp = "http://www.roblox.com/Asset/?ID=12064131" })
+Visuals:NewSky({ Name = "Blossom Daylight", SkyboxBk = "http://www.roblox.com/asset/?id=271042516", SkyboxDn = "http://www.roblox.com/asset/?id=271077243", SkyboxFt = "http://www.roblox.com/asset/?id=271042556", SkyboxLf = "http://www.roblox.com/asset/?id=271042310", SkyboxRt = "http://www.roblox.com/asset/?id=271042467", SkyboxUp = "http://www.roblox.com/asset/?id=271077958" })
+Visuals:NewSky({ Name = "Blue Nebula", SkyboxBk = "http://www.roblox.com/asset?id=135207744", SkyboxDn = "http://www.roblox.com/asset?id=135207662", SkyboxFt = "http://www.roblox.com/asset?id=135207770", SkyboxLf = "http://www.roblox.com/asset?id=135207615", SkyboxRt = "http://www.roblox.com/asset?id=135207695", SkyboxUp = "http://www.roblox.com/asset?id=135207794" })
+Visuals:NewSky({ Name = "Blue Planet", SkyboxBk = "rbxassetid://218955819", SkyboxDn = "rbxassetid://218953419", SkyboxFt = "rbxassetid://218954524", SkyboxLf = "rbxassetid://218958493", SkyboxRt = "rbxassetid://218957134", SkyboxUp = "rbxassetid://218950090" })
+Visuals:NewSky({ Name = "Deep Space v2", SkyboxBk = "http://www.roblox.com/asset/?id=159248188", SkyboxDn = "http://www.roblox.com/asset/?id=159248183", SkyboxFt = "http://www.roblox.com/asset/?id=159248187", SkyboxLf = "http://www.roblox.com/asset/?id=159248173", SkyboxRt = "http://www.roblox.com/asset/?id=159248192", SkyboxUp = "http://www.roblox.com/asset/?id=159248176" })
+
+local SkyboxNames = {}
+for Name, _ in pairs(Skyboxes) do
+    table.insert(SkyboxNames, Name)
+end
+
+local Camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Debris = game:GetService("Debris")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+local GetPlayers = Players.GetPlayers
+local WorldToViewportPoint = Camera.WorldToViewportPoint
+local RenderStepped = RunService.RenderStepped
+local GetMouseLocation = UserInputService.GetMouseLocation
+
+local resume = coroutine.resume
+local create = coroutine.create
+
+local ValidTargetParts = {"Head", "HumanoidRootPart"}
+local PredictionAmount = 0.165
+
+local currentTargetPart = nil
+local currentHighlight = nil
+local currentRotationAngle = 0
+local currentIndicatorHue = 0
+local npcList = {}
+local targetMap = {}
+local recentShots = {}
+local pendingDamage = {}
+local lockedTargetObject = nil
+local lastTriggerTime = 0
+local aaRotation = 0
+local isAimlockActiveByButton = false
+local aimlockHoldCoroutine = nil
+
+-- ===== 完全移除 Drawing，全部改用 GUI =====
+
+-- FOV 圈 GUI
+local FOVCircleGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+FOVCircleGui.Name = "FOVCircleGui"; FOVCircleGui.ResetOnSpawn = false; FOVCircleGui.IgnoreGuiInset = true; FOVCircleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local FOVCircleFrame = Instance.new("Frame", FOVCircleGui)
+FOVCircleFrame.Name = "FOVCircleFrame"; FOVCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5); FOVCircleFrame.Position = UDim2.fromScale(0.5, 0.5); FOVCircleFrame.BackgroundTransparency = 1
+local FOVStroke = Instance.new("UIStroke", FOVCircleFrame)
+FOVStroke.Name = "FOVStroke"; FOVStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; FOVStroke.Thickness = 1; FOVStroke.Transparency = 0.5
+local FOVCorner = Instance.new("UICorner", FOVCircleFrame)
+FOVCorner.Name = "FOVCorner"; FOVCorner.CornerRadius = UDim.new(1, 0)
+
+-- 目标指示器 GUI
+local TargetIndicatorGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+TargetIndicatorGui.Name = "TargetIndicatorGui"
+TargetIndicatorGui.ResetOnSpawn = false
+TargetIndicatorGui.IgnoreGuiInset = true
+TargetIndicatorGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local TargetIndicatorFrame = Instance.new("Frame", TargetIndicatorGui)
+TargetIndicatorFrame.Name = "IndicatorFrame"
+TargetIndicatorFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+TargetIndicatorFrame.Size = UDim2.new(0, 20, 0, 20)
+TargetIndicatorFrame.BackgroundTransparency = 1
+TargetIndicatorFrame.Visible = false
+
+local IndicatorStroke = Instance.new("UIStroke", TargetIndicatorFrame)
+IndicatorStroke.Name = "Stroke"
+IndicatorStroke.Thickness = 2
+IndicatorStroke.Transparency = 0
+IndicatorStroke.Color = Color3.fromRGB(255, 0, 0)
+
+local IndicatorCorner = Instance.new("UICorner", TargetIndicatorFrame)
+IndicatorCorner.Name = "Corner"
+IndicatorCorner.CornerRadius = UDim.new(1, 0)
+
+-- 追踪线 GUI
+local TracerLine = Instance.new("Frame", TargetIndicatorGui)
+TracerLine.Name = "TracerLine"
+TracerLine.AnchorPoint = Vector2.new(0.5, 0.5)
+TracerLine.Size = UDim2.new(0, 1, 0, 2)
+TracerLine.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+TracerLine.BackgroundTransparency = 0
+TracerLine.Visible = false
+TracerLine.ZIndex = 998
+
+-- 面板信息 GUI（目标旁边）
+local PanelInfoGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+PanelInfoGui.Name = "PanelInfoGui"
+PanelInfoGui.ResetOnSpawn = false
+PanelInfoGui.IgnoreGuiInset = true
+
+local PanelInfoBg = Instance.new("Frame", PanelInfoGui)
+PanelInfoBg.Name = "Bg"
+PanelInfoBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+PanelInfoBg.BackgroundTransparency = 0.5
+PanelInfoBg.Size = UDim2.new(0, 120, 0, 10)
+PanelInfoBg.Visible = false
+PanelInfoBg.BorderSizePixel = 0
+
+local PanelInfoTexts = {}
+for _, name in ipairs({"Name", "Health", "Distance", "Category"}) do
+    local label = Instance.new("TextLabel", PanelInfoBg)
+    label.Name = name
+    label.Size = UDim2.new(1, -5, 0, 15)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 14
+    label.TextColor3 = Color3.new(1,1,1)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Visible = false
+    PanelInfoTexts[name] = label
+end
+
+-- 头顶信息 GUI
+local OverheadInfoGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+OverheadInfoGui.Name = "OverheadInfoGui"
+OverheadInfoGui.ResetOnSpawn = false
+OverheadInfoGui.IgnoreGuiInset = true
+
+local OverheadInfoTexts = {}
+for _, name in ipairs({"Name", "Health", "Distance", "Category"}) do
+    local label = Instance.new("TextLabel", OverheadInfoGui)
+    label.Name = name
+    label.Size = UDim2.new(0, 150, 0, 16)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 14
+    label.TextColor3 = Color3.new(1,1,1)
+    label.TextXAlignment = Enum.TextXAlignment.Center
+    label.Visible = false
+    OverheadInfoTexts[name] = label
+end
+
+-- 独立面板 GUI
+local IndependentPanelGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+IndependentPanelGui.Name = "IndependentPanelGui"; IndependentPanelGui.ResetOnSpawn = false; IndependentPanelGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local IndependentPanelFrame = Instance.new("Frame", IndependentPanelGui)
+IndependentPanelFrame.Name = "PanelFrame"; IndependentPanelFrame.Size = UDim2.fromOffset(160, 100);
+IndependentPanelFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30); IndependentPanelFrame.BackgroundTransparency = 0.3; IndependentPanelFrame.BorderSizePixel = 1; IndependentPanelFrame.BorderColor3 = Color3.new(1,1,1)
+IndependentPanelFrame.Visible = false; IndependentPanelFrame.Active = true
+local IPCorner = Instance.new("UICorner", IndependentPanelFrame); IPCorner.CornerRadius = UDim.new(0, 4)
+local IPListLayout = Instance.new("UIListLayout", IndependentPanelFrame)
+IPListLayout.Padding = UDim.new(0, 5); IPListLayout.SortOrder = Enum.SortOrder.LayoutOrder; IPListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; IPListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+local independent_panel_texts = {}
+for i, name in ipairs({"Name", "Health", "Distance", "Category"}) do
+    local label = Instance.new("TextLabel", IndependentPanelFrame)
+    label.Name = name; label.Size = UDim2.new(1, -10, 0, 15); label.BackgroundTransparency = 1
+    label.Font = Enum.Font.SourceSans; label.TextSize = 14; label.TextColor3 = Color3.new(1,1,1); label.TextXAlignment = Enum.TextXAlignment.Left; label.LayoutOrder = i
+    independent_panel_texts[name] = label
+end
+IndependentPanelFrame.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 and IndependentPanelFrame.Draggable then IndependentPanelFrame.Position = UDim2.fromOffset(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) end end)
+IndependentPanelFrame.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 and IndependentPanelFrame.Draggable then SilentAimSettings.IndependentPanelPosition = IndependentPanelFrame.Position.X.Offset .. "," .. IndependentPanelFrame.Position.Y.Offset end end)
+
+-- ===== 雷达图 GUI =====
+local RadarGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+RadarGui.Name = "RadarGui"
+RadarGui.ResetOnSpawn = false
+RadarGui.IgnoreGuiInset = true
+RadarGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+RadarGui.Enabled = false
+
+local RadarBG = Instance.new("Frame", RadarGui)
+RadarBG.Name = "RadarBG"
+RadarBG.AnchorPoint = Vector2.new(0.5, 0.5)
+RadarBG.Position = UDim2.fromScale(0.5, 0.08)  -- 中上位置
+RadarBG.Size = UDim2.fromOffset(SilentAimSettings.RadarSize, SilentAimSettings.RadarSize)
+RadarBG.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+RadarBG.BackgroundTransparency = 0.4
+RadarBG.BorderSizePixel = 2
+RadarBG.BorderColor3 = Color3.fromRGB(255, 255, 255)
+RadarBG.Visible = false
+RadarBG.Active = true  -- 允许拖动
+
+local RadarCorner = Instance.new("UICorner", RadarBG)
+RadarCorner.CornerRadius = UDim.new(0, 4)
+
+local RadarCenter = Instance.new("Frame", RadarBG)
+RadarCenter.Name = "RadarCenter"
+RadarCenter.AnchorPoint = Vector2.new(0.5, 0.5)
+RadarCenter.Position = UDim2.fromScale(0.5, 0.5)
+RadarCenter.Size = UDim2.fromOffset(4, 4)
+RadarCenter.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+RadarCenter.BackgroundTransparency = 0
+RadarCenter.Active = false  -- 防止干扰拖动
+Instance.new("UICorner", RadarCenter).CornerRadius = UDim.new(1, 0)
+
+local radarBlips = {}
+
+-- 雷达拖动逻辑
+local radarDragging = false
+local radarDragStart = nil
+local radarStartPos = nil
+
+RadarBG.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        radarDragging = true
+        radarDragStart = input.Position
+        radarStartPos = RadarBG.Position
+    end
+end)
+
+RadarBG.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        radarDragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if radarDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - radarDragStart
+        RadarBG.Position = UDim2.new(radarStartPos.X.Scale, radarStartPos.X.Offset + delta.X,
+                                      radarStartPos.Y.Scale, radarStartPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ===== 自瞄移动端按钮 =====
+local MobileAimlockGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+MobileAimlockGui.Name = "MobileAimlockGui"
+MobileAimlockGui.ResetOnSpawn = false
+MobileAimlockGui.IgnoreGuiInset = true
+MobileAimlockGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MobileAimlockButton = Instance.new("TextButton", MobileAimlockGui)
+MobileAimlockButton.Name = "AimlockButton"
+MobileAimlockButton.AnchorPoint = Vector2.new(0.5, 0.5)
+MobileAimlockButton.Size = UDim2.fromOffset(SilentAimSettings.AimlockButtonSize, SilentAimSettings.AimlockButtonSize)
+MobileAimlockButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MobileAimlockButton.BackgroundTransparency = 0.2
+MobileAimlockButton.BorderSizePixel = 0
+MobileAimlockButton.Text = "自瞄\n[关]"
+MobileAimlockButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+MobileAimlockButton.Font = Enum.Font.GothamBold
+MobileAimlockButton.TextSize = 13
+MobileAimlockButton.Visible = false
+MobileAimlockButton.Active = true
+
+local MALCorner = Instance.new("UICorner", MobileAimlockButton)
+MALCorner.CornerRadius = UDim.new(1, 0)
+
+local MALStroke = Instance.new("UIStroke", MobileAimlockButton)
+MALStroke.Color = Color3.fromRGB(255, 80, 80)
+MALStroke.Thickness = 2
+MALStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local isDraggingAimlock = false
+local dragInputAimlock, dragStartAimlock, startPosAimlock
+
+MobileAimlockButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if not SilentAimSettings.MobileAimlockButtonPinned then
+            isDraggingAimlock = true
+            dragStartAimlock = input.Position
+            startPosAimlock = MobileAimlockButton.Position
+        end
+        
+        if SilentAimSettings.AimlockButtonHoldMode then
+            if aimlockHoldCoroutine then coroutine.close(aimlockHoldCoroutine) end
+            aimlockHoldCoroutine = coroutine.create(function()
+                task.wait(SilentAimSettings.AimlockHoldTime)
+                isAimlockActiveByButton = true
+                MobileAimlockButton.Text = "自瞄\n[锁定中]"
+                MobileAimlockButton.TextColor3 = Color3.fromRGB(50, 255, 50)
+                MALStroke.Color = Color3.fromRGB(50, 255, 50)
+            end)
+            coroutine.resume(aimlockHoldCoroutine)
+        end
+    end
+end)
+
+MobileAimlockButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInputAimlock = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInputAimlock and isDraggingAimlock then
+        local delta = input.Position - dragStartAimlock
+        MobileAimlockButton.Position = UDim2.new(startPosAimlock.X.Scale, startPosAimlock.X.Offset + delta.X, startPosAimlock.Y.Scale, startPosAimlock.Y.Offset + delta.Y)
+        if delta.Magnitude > 10 and SilentAimSettings.AimlockButtonHoldMode then
+            if aimlockHoldCoroutine then 
+                coroutine.close(aimlockHoldCoroutine)
+                aimlockHoldCoroutine = nil
+            end
+        end
+    end
+end)
+
+MobileAimlockButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDraggingAimlock = false
+        local delta = input.Position - dragStartAimlock
+        
+        if SilentAimSettings.AimlockButtonHoldMode then
+            if aimlockHoldCoroutine then
+                coroutine.close(aimlockHoldCoroutine)
+                aimlockHoldCoroutine = nil
+            end
+            isAimlockActiveByButton = false
+            MobileAimlockButton.Text = "自瞄\n[关]"
+            MobileAimlockButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+            MALStroke.Color = Color3.fromRGB(255, 80, 80)
+        else
+            if delta.Magnitude < 10 then
+                isAimlockActiveByButton = not isAimlockActiveByButton
+                if isAimlockActiveByButton then
+                    MobileAimlockButton.Text = "自瞄\n[锁定中]"
+                    MobileAimlockButton.TextColor3 = Color3.fromRGB(50, 255, 50)
+                    MALStroke.Color = Color3.fromRGB(50, 255, 50)
+                else
+                    MobileAimlockButton.Text = "自瞄\n[关]"
+                    MobileAimlockButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+                    MALStroke.Color = Color3.fromRGB(255, 80, 80)
+                end
+            end
+        end
+        SilentAimSettings.MobileAimlockButtonPosition = MobileAimlockButton.Position.X.Offset .. "," .. MobileAimlockButton.Position.Y.Offset
+    end
+end)
+
+local ExpectedArguments = {
+    FindPartOnRayWithIgnoreList = { ArgCountRequired = 3, Args = {"Instance", "Ray", "table", "boolean", "boolean"} },
+    FindPartOnRayWithWhitelist = { ArgCountRequired = 3, Args = {"Instance", "Ray", "table", "boolean"} },
+    FindPartOnRay = { ArgCountRequired = 2, Args = {"Instance", "Ray", "Instance", "boolean", "boolean"} },
+    Raycast = { ArgCountRequired = 3, Args = {"Instance", "Vector3", "Vector3", "RaycastParams"} }
+}
+
+local HitSounds = {
+    ["bell"] = "rbxassetid://8679627751",
+    ["metal"] = "rbxassetid://3125624765",
+    ["click"] = "rbxassetid://17755696142",
+    ["exp"] = "rbxassetid://10070796384"
+}
+
+local rainbowColor = Color3.fromHSV(0, 1, 1)
+task.spawn(function()
+    while task.wait() do
+        if Library and Library.Unloaded then break end
+        local hue = (tick() % 6) / 6
+        rainbowColor = Color3.fromHSV(hue, 1, 1)
+    end
+end)
+
+local function playHitSound(soundId)
+    local sound = Instance.new("Sound")
+    sound.Parent = CoreGui
+    sound.SoundId = soundId
+    sound.Volume = 0.6
+    sound:Play()
+    Debris:AddItem(sound, sound.TimeLength + 0.2)
+end
+
+function CalculateChance(Percentage)
+    Percentage = math.floor(Percentage)
+    return math.random() <= Percentage / 100
+end
+
+do
+    if not isfolder(MainFileName) then makefolder(MainFileName) end
+    if not isfolder(string.format("%s/%s", MainFileName, tostring(game.PlaceId))) then makefolder(string.format("%s/%s", MainFileName, tostring(game.PlaceId))) end
+end
+
+local function getPositionOnScreen(Vector)
+    local Vec3, OnScreen = WorldToViewportPoint(Camera, Vector)
+    return Vector2.new(Vec3.X, Vec3.Y), OnScreen
+end
+
+local function ValidateArguments(Args, RayMethod)
+    local Matches = 0
+    if #Args < RayMethod.ArgCountRequired then return false end
+    for Pos, Argument in next, Args do if typeof(Argument) == RayMethod.Args[Pos] then Matches = Matches + 1 end end
+    return Matches >= RayMethod.ArgCountRequired
+end
+
+local function getDirection(Origin, Position)
+    return (Position - Origin).Unit * 1000
+end
+
+local function isNPC(obj)
+    return obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) and (obj:FindFirstChildOfClass("Humanoid") or obj:FindFirstChild("AnimationController")) and (not obj:FindFirstChildOfClass("Humanoid") or obj:FindFirstChildOfClass("Humanoid").Health > 0)
+end
+
+function getTargetCategory(character)
+    if not character then return "无" end
+    if Players:GetPlayerFromCharacter(character) then return "玩家" end
+    if SilentAimSettings.EnableNameTargeting then
+        local name = character.Name:lower()
+        for _, whitelistedName in ipairs(SilentAimSettings.WhitelistedNames) do
+            if whitelistedName and whitelistedName ~= "" and string.find(name, whitelistedName:lower(), 1, true) then
+                return "添加的"
+            end
+        end
+    end
+    for _, path in ipairs(SilentAimSettings.WhitelistPath) do
+        local obj = workspace:FindFirstChild(path)
+        if obj and obj == character then return "路径白名单" end
+    end
+    if character:FindFirstChildOfClass("Humanoid") or character:FindFirstChild("AnimationController") then return "NPC" end
+    return "未知"
+end
+
+local function updateNPCs()
+    local newNpcList = {}
+    local addedNpcs = {}
+    if SilentAimSettings.EnableNameTargeting and #SilentAimSettings.WhitelistedNames > 0 then
+        for _, model in ipairs(workspace:GetDescendants()) do
+            if isNPC(model) then
+                for _, substring in ipairs(SilentAimSettings.WhitelistedNames) do
+                    if substring and substring ~= "" and string.find(model.Name:lower(), substring:lower(), 1, true) then
+                        if not addedNpcs[model] then
+                            table.insert(newNpcList, model)
+                            addedNpcs[model] = true
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    for _, path in ipairs(SilentAimSettings.WhitelistPath) do
+        local obj = workspace:FindFirstChild(path)
+        if obj and isNPC(obj) and not addedNpcs[obj] then
+            table.insert(newNpcList, obj)
+            addedNpcs[obj] = true
+        end
+    end
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if isNPC(v) then
+            if not addedNpcs[v] then
+                table.insert(newNpcList, v)
+                addedNpcs[v] = true
+            end
+        end
+    end
+    npcList = newNpcList
+end
+
+local function isBlacklisted(name)
+    local lowerName = name:lower()
+    for _, blacklistedName in ipairs(SilentAimSettings.BlacklistedNames) do
+        if blacklistedName:lower() == lowerName then return true end
+    end
+    return false
+end
+
+local function isPartVisible(part, customOrigin)
+    if not part then return false end
+    local localCharacter = LocalPlayer.Character
+    if not localCharacter then return false end
+    local origin = customOrigin or Camera.CFrame.Position
+    local direction = part.Position - origin
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {localCharacter, part.Parent}
+    local raycastResult = workspace:Raycast(origin, direction.Unit * direction.Magnitude, raycastParams)
+    return not raycastResult
+end
+
+local function getClosestPlayer()
+    local LocalPlayerCharacter = LocalPlayer.Character
+    if not LocalPlayerCharacter or not LocalPlayerCharacter:FindFirstChild("HumanoidRootPart") then return nil end
+    local localRoot = LocalPlayerCharacter.HumanoidRootPart
+    local AimPoint = SilentAimSettings.FixedFOV and (Camera.ViewportSize / 2) or GetMouseLocation(UserInputService)
+    local candidates = {}
+    for _, Player in ipairs(GetPlayers(Players)) do
+        if Player ~= LocalPlayer and not (SilentAimSettings.TeamCheck and Player.Team == LocalPlayer.Team) and not isBlacklisted(Player.Name) then
+            local Character = Player.Character
+            local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+            if Character and Humanoid and Humanoid.Health > 0 then
+                local partForChecks = Character:FindFirstChild(SilentAimSettings.TargetPart) or Character:FindFirstChild("HumanoidRootPart")
+                if not partForChecks then continue end
+                if not (SilentAimSettings.VisibleCheck and not isPartVisible(partForChecks, LocalPlayerCharacter.Head.Position)) then
+                    local physicalDist = (localRoot.Position - partForChecks.Position).Magnitude
+                    if physicalDist <= SilentAimSettings.MaxDistance then
+                        if SilentAimSettings.PriorityMode == "最近的人(无FOV)" then
+                            table.insert(candidates, {character = Character, fov = math.huge, dist = physicalDist, health = Humanoid.Health})
+                        else
+                            local ScreenPosition, OnScreen = getPositionOnScreen(partForChecks.Position)
+                            if OnScreen then
+                                local fovDist = (AimPoint - ScreenPosition).Magnitude
+                                if fovDist <= SilentAimSettings.FOVRadius then
+                                    table.insert(candidates, {character = Character, fov = fovDist, dist = physicalDist, health = Humanoid.Health})
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if #candidates == 0 then return nil end
+    table.sort(candidates, function(a, b)
+        if SilentAimSettings.PriorityMode == "最低血量" then
+            return a.health < b.health
+        elseif SilentAimSettings.PriorityMode == "距离最近" or SilentAimSettings.PriorityMode == "最近的人(无FOV)" then
+            return a.dist < b.dist
+        else
+            return a.fov < b.fov
+        end
+    end)
+    return candidates[1].character
+end
+
+local function getNPCTarget()
+    local LocalPlayerCharacter = LocalPlayer.Character
+    if not LocalPlayerCharacter or not LocalPlayerCharacter:FindFirstChild("HumanoidRootPart") then return nil end
+    local localRoot = LocalPlayerCharacter.HumanoidRootPart
+    local AimPoint = SilentAimSettings.FixedFOV and (Camera.ViewportSize / 2) or GetMouseLocation(UserInputService)
+    local candidates = {}
+    for _, NPCModel in ipairs(npcList) do
+        if not (SilentAimSettings.TeamCheck and NPCModel.Team and NPCModel.Team == LocalPlayer.Team) and not isBlacklisted(NPCModel.Name) then
+            local Humanoid = NPCModel and NPCModel:FindFirstChildOfClass("Humanoid")
+            if NPCModel and (not Humanoid or Humanoid.Health > 0) then
+                local partForChecks = NPCModel:FindFirstChild(SilentAimSettings.TargetPart) or NPCModel.PrimaryPart or NPCModel:FindFirstChild("HumanoidRootPart")
+                if not partForChecks then continue end
+                if not (SilentAimSettings.VisibleCheck and not isPartVisible(partForChecks, LocalPlayerCharacter.Head.Position)) then
+                    local physicalDist = (localRoot.Position - partForChecks.Position).Magnitude
+                    if physicalDist <= SilentAimSettings.MaxDistance then
+                         if SilentAimSettings.PriorityMode == "最近的人(无FOV)" then
+                            table.insert(candidates, {character = NPCModel, fov = math.huge, dist = physicalDist, health = Humanoid and Humanoid.Health or 100})
+                        else
+                            local ScreenPosition, OnScreen = getPositionOnScreen(partForChecks.Position)
+                            if OnScreen then
+                                local fovDist = (AimPoint - ScreenPosition).Magnitude
+                                if fovDist <= SilentAimSettings.FOVRadius then
+                                    table.insert(candidates, {character = NPCModel, fov = fovDist, dist = physicalDist, health = Humanoid and Humanoid.Health or 100})
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if #candidates == 0 then return nil end
+    table.sort(candidates, function(a, b)
+        if SilentAimSettings.PriorityMode == "最低血量" then
+            return a.health < b.health
+        elseif SilentAimSettings.PriorityMode == "距离最近" or SilentAimSettings.PriorityMode == "最近的人(无FOV)" then
+            return a.dist < b.dist
+        else
+            return a.fov < b.fov
+        end
+    end)
+    return candidates[1].character
+end
+
+local function getTargetAimingAtUs()
+    local localChar = LocalPlayer.Character
+    if not localChar or not localChar:FindFirstChild("HumanoidRootPart") then return nil end
+    local myPos = localChar.HumanoidRootPart.Position
+
+    local AimPoint = SilentAimSettings.FixedFOV and (Camera.ViewportSize / 2) or GetMouseLocation(UserInputService)
+    local candidates = {}
+
+    local function checkTarget(character, isNPC)
+        if character and character:FindFirstChild("Head") and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
+            local head = character.Head
+            local root = character:FindFirstChild("HumanoidRootPart") or head
+            local dist = (myPos - root.Position).Magnitude
+            if dist <= SilentAimSettings.MaxDistance then
+                local dirToMe = (myPos - head.Position).Unit
+                local lookDir = head.CFrame.LookVector
+                
+                local dirToMeXZ = Vector3.new(dirToMe.X, 0, dirToMe.Z)
+                local lookDirXZ = Vector3.new(lookDir.X, 0, lookDir.Z)
+                
+                local yawAngle = 0
+                if dirToMeXZ.Magnitude > 0.001 and lookDirXZ.Magnitude > 0.001 then
+                    yawAngle = math.deg(math.acos(math.clamp(dirToMeXZ.Unit:Dot(lookDirXZ.Unit), -1, 1)))
+                end
+                
+                local pitchToMe = math.deg(math.asin(math.clamp(dirToMe.Y, -1, 1)))
+                local lookPitch = math.deg(math.asin(math.clamp(lookDir.Y, -1, 1)))
+                local pitchAngle = math.abs(pitchToMe - lookPitch)
+                
+                if yawAngle <= SilentAimSettings.LockOnAimedSensitivityX and pitchAngle <= SilentAimSettings.LockOnAimedSensitivityY then
+                    local passVisibility = true
+                    if SilentAimSettings.LockOnAimedWallCheck then
+                        passVisibility = isPartVisible(character:FindFirstChild(SilentAimSettings.TargetPart) or root, localChar.Head.Position)
+                    end
+                    if passVisibility then
+                        local fovDist = math.huge
+                        local ScreenPosition, OnScreen = getPositionOnScreen(root.Position)
+                        if OnScreen then
+                            fovDist = (AimPoint - ScreenPosition).Magnitude
+                        end
+                        table.insert(candidates, {
+                            character = character, 
+                            dist = dist, 
+                            health = character.Humanoid.Health,
+                            fov = fovDist
+                        })
+                    end
+                end
+            end
+        end
+    end
+
+    for _, player in ipairs(GetPlayers(Players)) do
+        if player ~= LocalPlayer and not (SilentAimSettings.TeamCheck and player.Team == LocalPlayer.Team) and not isBlacklisted(player.Name) then
+            checkTarget(player.Character, false)
+        end
+    end
+
+    for _, npc in ipairs(npcList) do
+        if not SilentAimSettings.AdvancedFiltering or isWhitelisted(npc) then
+            if not (SilentAimSettings.TeamCheck and npc:FindFirstChild("Team") and npc.Team == LocalPlayer.Team) and not isBlacklisted(npc.Name) then
+                checkTarget(npc, true)
+            end
+        end
+    end
+
+    if #candidates == 0 then return nil end
+    
+    table.sort(candidates, function(a, b)
+        if SilentAimSettings.LockOnAimedPriority == "最低血量" then
+            return a.health < b.health
+        elseif SilentAimSettings.LockOnAimedPriority == "距离最近" then
+            return a.dist < b.dist
+        else
+            return a.fov < b.fov
+        end
+    end)
+    
+    return candidates[1].character
+end
+
+function hideAllVisuals()
+    TargetIndicatorFrame.Visible = false
+    TracerLine.Visible = false
+    PanelInfoBg.Visible = false
+    for _, label in pairs(PanelInfoTexts) do label.Visible = false end
+    for _, label in pairs(OverheadInfoTexts) do label.Visible = false end
+    if IndependentPanelFrame then IndependentPanelFrame.Visible = false end
+end
+
+local repo = "https://raw.githubusercontent.com/dhsunisahentai/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+
+local Options = Library.Options
+local Toggles = Library.Toggles
+getgenv().Toggles = Toggles
+
+local Window = Library:CreateWindow({ Title = "nb666", Footer = "1.3", Center = true, AutoShow = true })
+
+local Tabs = {
+    Main = Window:AddTab("主页", "user"),
+    Aimlock = Window:AddTab("自瞄", "target"),
+    Visuals = Window:AddTab("视觉", "camera"),
+    Management = Window:AddTab("管理", "users"),
+    Misc = Window:AddTab("杂项", "box"),
+    ESP = Window:AddTab("ESP", "scan"),
+    ["UI Settings"] = Window:AddTab("设置", "settings"),
+}
+
+-- ===== 主页 (Main) =====
+local MainSettingsBox = Tabs.Main:AddLeftGroupbox("主设置")
+MainSettingsBox:AddToggle("EnabledToggle", { Text = "启用", Default = SilentAimSettings.Enabled }):AddKeyPicker("EnabledKeybind", { Default = SilentAimSettings.ToggleKey, SyncToggleState = true, Mode = "Toggle" })
+Toggles.EnabledToggle:OnChanged(function(Value) SilentAimSettings.Enabled = Value end)
+MainSettingsBox:AddToggle("TeamCheckToggle", { Text = "队伍检查", Default = SilentAimSettings.TeamCheck }):OnChanged(function(Value) SilentAimSettings.TeamCheck = Value end)
+MainSettingsBox:AddToggle("VisibleCheckToggle", { Text = "可见性检查", Default = SilentAimSettings.VisibleCheck }):OnChanged(function(Value) SilentAimSettings.VisibleCheck = Value end)
+MainSettingsBox:AddToggle("WallbangToggle", { Text = "穿墙", Default = SilentAimSettings.Wallbang}):OnChanged(function(Value) SilentAimSettings.Wallbang = Value end)
+MainSettingsBox:AddToggle("LeakAndHitToggle", { Text = "漏打模式", Default = SilentAimSettings.LeakAndHitMode}):OnChanged(function(Value) SilentAimSettings.LeakAndHitMode = Value end)
+MainSettingsBox:AddSlider('HitChanceSlider', { Text = '命中率', Default = SilentAimSettings.HitChance, Min = 0, Max = 100, Rounding = 1, Suffix = "%" }):OnChanged(function(Value) SilentAimSettings.HitChance = Value end)
+
+local TargetingBox = Tabs.Main:AddRightGroupbox("目标")
+TargetingBox:AddDropdown("TargetModeDropdown", { Text = "目标种类", Default = "所有", Values = {"玩家", "NPC", "所有"} }):OnChanged(function(Value) SilentAimSettings.TargetMode = Value end)
+TargetingBox:AddDropdown("TargetPartDropdown", { Values = {"Head", "HumanoidRootPart", "Random"}, Default = SilentAimSettings.TargetPart, Text = "目标部位" }):OnChanged(function(Value) SilentAimSettings.TargetPart = Value end)
+TargetingBox:AddDropdown("PriorityModeDropdown", { Text = "优先模式", Default = SilentAimSettings.PriorityMode, Values = {"准星最近", "距离最近", "最低血量", "最近的人(无FOV)"} }):OnChanged(function(Value) SilentAimSettings.PriorityMode = Value end)
+TargetingBox:AddSlider('MaxDistanceSlider', { Text = '最大距离', Default = SilentAimSettings.MaxDistance, Min = 10, Max = 2000, Rounding = 0, Suffix = "studs" }):OnChanged(function(Value) SilentAimSettings.MaxDistance = Value end)
+
+local MethodBox = Tabs.Main:AddRightGroupbox("方法")
+MethodBox:AddDropdown("MethodDropdown", { Text = "静默瞄准方式", Default = SilentAimSettings.SilentAimMethod, Values = { "Raycast","FindPartOnRay", "FindPartOnRayWithWhitelist", "FindPartOnRayWithIgnoreList", "ScreenPointToRay", "ViewportPointToRay", "Ray", "Mouse.Hit/Target" } }):OnChanged(function(Value) SilentAimSettings.SilentAimMethod = Value end)
+MethodBox:AddToggle("PredictionToggle", { Text = "Mouse.Hit/Target 预判", Default = SilentAimSettings.MouseHitPrediction }):OnChanged(function(Value) SilentAimSettings.MouseHitPrediction = Value end)
+MethodBox:AddSlider("PredictionAmountSlider", { Text = "预判量", Min = 0, Max = 1, Default = SilentAimSettings.MouseHitPredictionAmount, Rounding = 3 }):OnChanged(function(Value) SilentAimSettings.MouseHitPredictionAmount = Value; PredictionAmount = Value end)
+MethodBox:AddToggle("HeadshotChanceToggle", { Text = "启用爆头几率", Default = SilentAimSettings.HeadshotChanceEnabled }):OnChanged(function(Value) SilentAimSettings.HeadshotChanceEnabled = Value end)
+MethodBox:AddSlider('HeadshotChanceSlider', { Text = '爆头概率', Default = SilentAimSettings.HeadshotChance, Min = 0, Max = 100, Rounding = 1, Suffix = "%" }):OnChanged(function(Value) SilentAimSettings.HeadshotChance = Value end)
+
+-- ===== 自动扳机 (Triggerbot) =====
+local TriggerbotBox = Tabs.Main:AddLeftGroupbox("自动扳机 (Triggerbot)")
+local MobileTriggerGui, MobileTriggerButton, MTStroke
+TriggerbotBox:AddToggle("TriggerbotToggle", { Text = "启用自动扳机", Default = SilentAimSettings.TriggerbotEnabled }):OnChanged(function(Value)
+    SilentAimSettings.TriggerbotEnabled = Value
+    if MobileTriggerButton then
+        if Value then
+            MobileTriggerButton.Text = "自动扳机\n[开]"
+            MobileTriggerButton.TextColor3 = Color3.fromRGB(50, 255, 50)
+            MTStroke.Color = Color3.fromRGB(50, 255, 50)
+        else
+            MobileTriggerButton.Text = "自动扳机\n[关]"
+            MobileTriggerButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+            MTStroke.Color = Color3.fromRGB(255, 80, 80)
+        end
+    end
+end)
+TriggerbotBox:AddSlider("TriggerbotCPSSlider", { Text = "点击频率 (CPS)", Min = 1, Max = 20, Default = SilentAimSettings.TriggerbotCPS, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotCPS = Value end)
+TriggerbotBox:AddToggle("ShowMobileTriggerButton", { Text = "显示移动端按钮", Default = SilentAimSettings.ShowMobileTriggerButton }):OnChanged(function(Value)
+    SilentAimSettings.ShowMobileTriggerButton = Value
+    if MobileTriggerButton then MobileTriggerButton.Visible = Value end
+end)
+TriggerbotBox:AddSlider("TriggerbotButtonSizeSlider", { Text = "按钮大小", Min = 40, Max = 150, Default = SilentAimSettings.TriggerbotButtonSize, Rounding = 0 }):OnChanged(function(Value)
+    SilentAimSettings.TriggerbotButtonSize = Value
+    if MobileTriggerButton then MobileTriggerButton.Size = UDim2.fromOffset(Value, Value) end
+end)
+TriggerbotBox:AddToggle("PinMobileTriggerButton", { Text = "锁定按钮位置", Default = SilentAimSettings.MobileTriggerButtonPinned }):OnChanged(function(Value) SilentAimSettings.MobileTriggerButtonPinned = Value end)
+TriggerbotBox:AddButton("重置按钮位置 (居中)", function()
+    local screenSize = Camera.ViewportSize
+    local newX = math.floor(screenSize.X / 2)
+    local newY = math.floor(screenSize.Y / 2)
+    if MobileTriggerButton then
+        MobileTriggerButton.Position = UDim2.fromOffset(newX, newY)
+        SilentAimSettings.MobileTriggerButtonPosition = newX .. "," .. newY
+    end
+end)
+TriggerbotBox:AddSlider("TriggerClickOffsetX", { Text = "点击X轴偏移 (微调)", Min = -500, Max = 500, Default = SilentAimSettings.TriggerbotOffsetX, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotOffsetX = Value end)
+TriggerbotBox:AddSlider("TriggerClickOffsetY", { Text = "点击Y轴偏移 (微调)", Min = -500, Max = 500, Default = SilentAimSettings.TriggerbotOffsetY, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TriggerbotOffsetY = Value end)
+
+do
+    MobileTriggerGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    MobileTriggerGui.Name = "MobileTriggerGui"
+    MobileTriggerGui.ResetOnSpawn = false
+    MobileTriggerGui.IgnoreGuiInset = true
+    MobileTriggerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    MobileTriggerButton = Instance.new("TextButton", MobileTriggerGui)
+    MobileTriggerButton.Name = "TriggerButton"
+    MobileTriggerButton.AnchorPoint = Vector2.new(0.5, 0.5)
+    MobileTriggerButton.Size = UDim2.fromOffset(SilentAimSettings.TriggerbotButtonSize, SilentAimSettings.TriggerbotButtonSize)
+    MobileTriggerButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    MobileTriggerButton.BackgroundTransparency = 0.2
+    MobileTriggerButton.BorderSizePixel = 0
+    MobileTriggerButton.Text = "自动扳机\n[关]"
+    MobileTriggerButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+    MobileTriggerButton.Font = Enum.Font.GothamBold
+    MobileTriggerButton.TextSize = 13
+    MobileTriggerButton.Visible = false
+    MobileTriggerButton.Active = true
+
+    local MTCorner = Instance.new("UICorner", MobileTriggerButton)
+    MTCorner.CornerRadius = UDim.new(0, 12)
+
+    MTStroke = Instance.new("UIStroke", MobileTriggerButton)
+    MTStroke.Color = Color3.fromRGB(255, 80, 80)
+    MTStroke.Thickness = 2
+    MTStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    local isDraggingTrigger = false
+    local dragInputTrigger, dragStartTrigger, startPosTrigger
+
+    MobileTriggerButton.InputBegan:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            if not SilentAimSettings.MobileTriggerButtonPinned then
+                isDraggingTrigger = true
+                dragStartTrigger = input.Position
+                startPosTrigger = MobileTriggerButton.Position
+            end
+        end
+    end)
+
+    MobileTriggerButton.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInputTrigger = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInputTrigger and isDraggingTrigger then
+            local delta = input.Position - dragStartTrigger
+            MobileTriggerButton.Position = UDim2.new(startPosTrigger.X.Scale, startPosTrigger.X.Offset + delta.X, startPosTrigger.Y.Scale, startPosTrigger.Y.Offset + delta.Y)
+        end
+    end)
+
+    MobileTriggerButton.InputEnded:Connect(function(input)
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStartTrigger
+            if isDraggingTrigger then
+                isDraggingTrigger = false
+                SilentAimSettings.MobileTriggerButtonPosition = MobileTriggerButton.Position.X.Offset .. "," .. MobileTriggerButton.Position.Y.Offset
+            end
+            if delta and delta.Magnitude < 10 then
+                if getgenv().Toggles and getgenv().Toggles.TriggerbotToggle then
+                    getgenv().Toggles.TriggerbotToggle:SetValue(not getgenv().Toggles.TriggerbotToggle.Value)
+                end
+            end
+        end
+    end)
+end
+
+-- ===== 自瞄 (Aimlock) =====
+local AimlockTabbox = Tabs.Aimlock:AddLeftTabbox()
+local AimlockTab = AimlockTabbox:AddTab("自瞄设置")
+local LockAimedTab = AimlockTabbox:AddTab("被瞄反杀")
+
+AimlockTab:AddToggle("AimlockToggle", { Text = "启用自瞄 (视角追踪)", Default = SilentAimSettings.AimlockEnabled }):AddKeyPicker("AimlockKeybind", { Default = SilentAimSettings.AimlockKey, SyncToggleState = true, Mode = "Toggle" })
+Toggles.AimlockToggle:OnChanged(function(Value) SilentAimSettings.AimlockEnabled = Value end)
+
+AimlockTab:AddToggle("AimlockSnapCamera", { Text = "锁定镜头视角 (Camera Snap)", Default = SilentAimSettings.AimlockSnapCamera }):OnChanged(function(Value) SilentAimSettings.AimlockSnapCamera = Value end)
+AimlockTab:AddSlider("AimlockSmoothnessSlider", { Text = "平滑度 (1=无平滑)", Min = 0.01, Max = 1, Default = SilentAimSettings.AimlockSmoothness, Rounding = 2 }):OnChanged(function(Value) SilentAimSettings.AimlockSmoothness = Value end)
+AimlockTab:AddDropdown("AimMethodDropdown", { Text = "瞄准方法", Default = SilentAimSettings.AimMethod, Values = {"aimbot", "V5.0 自瞄"} }):OnChanged(function(Value)
+    SilentAimSettings.AimMethod = Value
+    if Value == "V5.0 自瞄" then
+        FOVCircleFrame.Size = UDim2.fromOffset(SilentAimSettings.AimbotFOVRadius * 2, SilentAimSettings.AimbotFOVRadius * 2)
+    else
+        FOVCircleFrame.Size = UDim2.fromOffset(SilentAimSettings.FOVRadius * 2, SilentAimSettings.FOVRadius * 2)
+    end
+end)
+AimlockTab:AddSlider("AimbotFOVSlider", { Text = "V5自瞄FOV范围", Min = 10, Max = 1000, Default = SilentAimSettings.AimbotFOVRadius, Rounding = 0 }):OnChanged(function(Value)
+    SilentAimSettings.AimbotFOVRadius = Value
+    if SilentAimSettings.AimMethod == "V5.0 自瞄" then
+        FOVCircleFrame.Size = UDim2.fromOffset(Value * 2, Value * 2)
+    end
+end)
+AimlockTab:AddSlider("AimbotPredictionSlider", { Text = "V5自瞄预判量", Min = 0, Max = 0.3, Default = SilentAimSettings.AimbotPredictionFactor, Rounding = 3 }):OnChanged(function(Value) SilentAimSettings.AimbotPredictionFactor = Value end)
+AimlockTab:AddSlider("AimbotAimSpeedSlider", { Text = "V5自瞄速度", Min = 1, Max = 30, Default = SilentAimSettings.AimbotAimSpeed, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.AimbotAimSpeed = Value end)
+
+AimlockTab:AddToggle("ShowMobileAimlockButton", { Text = "显示自瞄按钮 (移动端)", Default = SilentAimSettings.ShowMobileAimlockButton }):OnChanged(function(Value)
+    SilentAimSettings.ShowMobileAimlockButton = Value
+    MobileAimlockButton.Visible = Value
+end)
+AimlockTab:AddToggle("AimlockButtonHoldMode", { Text = "移动端按钮使用长按触发", Default = SilentAimSettings.AimlockButtonHoldMode }):OnChanged(function(Value)
+    SilentAimSettings.AimlockButtonHoldMode = Value
+    if not Value then
+        if aimlockHoldCoroutine then
+            coroutine.close(aimlockHoldCoroutine)
+            aimlockHoldCoroutine = nil
+        end
+        isAimlockActiveByButton = false
+        MobileAimlockButton.Text = "自瞄\n[关]"
+        MobileAimlockButton.TextColor3 = Color3.fromRGB(255, 80, 80)
+        MALStroke.Color = Color3.fromRGB(255, 80, 80)
+    end
+end)
+AimlockTab:AddSlider("AimlockHoldTimeSlider", { Text = "长按触发秒数", Min = 0, Max = 2, Default = SilentAimSettings.AimlockHoldTime, Rounding = 2 }):OnChanged(function(Value) SilentAimSettings.AimlockHoldTime = Value end)
+AimlockTab:AddSlider("AimlockButtonSizeSlider", { Text = "自瞄按钮大小", Min = 40, Max = 150, Default = SilentAimSettings.AimlockButtonSize, Rounding = 0 }):OnChanged(function(Value)
+    SilentAimSettings.AimlockButtonSize = Value
+    MobileAimlockButton.Size = UDim2.fromOffset(Value, Value)
+end)
+AimlockTab:AddToggle("PinMobileAimlockButton", { Text = "锁定自瞄按钮位置", Default = SilentAimSettings.MobileAimlockButtonPinned }):OnChanged(function(Value) SilentAimSettings.MobileAimlockButtonPinned = Value end)
+AimlockTab:AddButton("重置自瞄按钮位置", function()
+    local screenSize = Camera.ViewportSize
+    local newX = math.floor(screenSize.X / 2 - 80)
+    local newY = math.floor(screenSize.Y / 2)
+    MobileAimlockButton.Position = UDim2.fromOffset(newX, newY)
+    SilentAimSettings.MobileAimlockButtonPosition = newX .. "," .. newY
+end)
+
+LockAimedTab:AddToggle("LockOnAimedToggle", { Text = "被瞄秒锁 (反杀功能)", Default = SilentAimSettings.LockOnAimed }):OnChanged(function(Value) SilentAimSettings.LockOnAimed = Value end)
+LockAimedTab:AddToggle("LockOnAimedWallCheck", { Text = "被瞄秒锁进行墙体检测", Default = SilentAimSettings.LockOnAimedWallCheck }):OnChanged(function(Value) SilentAimSettings.LockOnAimedWallCheck = Value end)
+LockAimedTab:AddDropdown("LockOnAimedPriority", { Text = "被瞄反杀优先级", Default = SilentAimSettings.LockOnAimedPriority, Values = {"准星最近", "距离最近", "最低血量"} }):OnChanged(function(Value) SilentAimSettings.LockOnAimedPriority = Value end)
+LockAimedTab:AddSlider("LockOnAimedSensitivityX", { Text = "反瞄敏感度 (X轴/水平)", Min = 1, Max = 180, Default = SilentAimSettings.LockOnAimedSensitivityX, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.LockOnAimedSensitivityX = Value end)
+LockAimedTab:AddSlider("LockOnAimedSensitivityY", { Text = "反瞄敏感度 (Y轴/垂直)", Min = 1, Max = 180, Default = SilentAimSettings.LockOnAimedSensitivityY, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.LockOnAimedSensitivityY = Value end)
+
+-- ===== 视觉 (Visuals) =====
+local FovIndicatorBox = Tabs.Visuals:AddLeftGroupbox("范围与指示器")
+FovIndicatorBox:AddToggle("FOVVisibleToggle", { Text = "显示FOV圈", Default = SilentAimSettings.FOVVisible }):AddColorPicker("FOVColorPicker", { Default = Color3.fromRGB(54, 57, 241), Title = "FOV圈颜色" })
+Toggles.FOVVisibleToggle:OnChanged(function(Value) FOVCircleGui.Enabled = Value; SilentAimSettings.FOVVisible = Value end)
+Options.FOVColorPicker:OnChanged(function(Value) FOVStroke.Color = Value end)
+FovIndicatorBox:AddSlider("FOVRadiusSlider", { Text = "FOV圈半径", Min = 10, Max = 1000, Default = SilentAimSettings.FOVRadius, Rounding = 0 }):OnChanged(function(Value) FOVCircleFrame.Size = UDim2.fromOffset(Value * 2, Value * 2); SilentAimSettings.FOVRadius = Value end)
+FovIndicatorBox:AddToggle("FixedFOVToggle", { Text = "固定FOV (移动端)", Default = SilentAimSettings.FixedFOV }):OnChanged(function(Value) SilentAimSettings.FixedFOV = Value end)
+FovIndicatorBox:AddToggle("ShowTargetToggle", { Text = "显示目标", Default = SilentAimSettings.ShowSilentAimTarget }):AddColorPicker("TargetIndicatorColorPicker", { Default = Color3.fromRGB(255,0,0), Title = "指示器颜色" })
+Toggles.ShowTargetToggle:OnChanged(function(Value) SilentAimSettings.ShowSilentAimTarget = Value end)
+Options.TargetIndicatorColorPicker:OnChanged(function(Value) IndicatorStroke.Color = Value end)
+FovIndicatorBox:AddDropdown("IndicatorStyleDropdown", { Text = "指示器样式", Values = {"Circle", "Triangle", "Pentagram", "十字准星", "三线准星"}, Default = "Circle" })
+FovIndicatorBox:AddSlider("TargetIndicatorRadiusSlider", { Text = "指示器大小(通用)", Min = 5, Max = 50, Default = SilentAimSettings.TargetIndicatorRadius, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.TargetIndicatorRadius = Value end)
+FovIndicatorBox:AddSlider("CrosshairLengthSlider", { Text = "十字准星长度", Min = 5, Max = 100, Default = SilentAimSettings.CrosshairLength, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.CrosshairLength = Value end)
+FovIndicatorBox:AddSlider("CrosshairGapSlider", { Text = "十字准星间隙", Min = 0, Max = 50, Default = SilentAimSettings.CrosshairGap, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.CrosshairGap = Value end)
+FovIndicatorBox:AddToggle("IndicatorRotationToggle", { Text = "指示器旋转", Default = SilentAimSettings.IndicatorRotationEnabled }):OnChanged(function(Value) SilentAimSettings.IndicatorRotationEnabled = Value end)
+FovIndicatorBox:AddSlider("IndicatorRotationSpeedSlider", { Text = "旋转速度", Min = 0, Max = 10, Default = SilentAimSettings.IndicatorRotationSpeed, Rounding = 1 }):OnChanged(function(Value) SilentAimSettings.IndicatorRotationSpeed = Value end)
+FovIndicatorBox:AddToggle("IndicatorRainbowToggle", { Text = "启用彩虹色", Default = SilentAimSettings.IndicatorRainbowEnabled }):OnChanged(function(Value) SilentAimSettings.IndicatorRainbowEnabled = Value end)
+FovIndicatorBox:AddSlider("IndicatorRainbowSpeedSlider", { Text = "颜色变换速度", Min = 0, Max = 10, Default = SilentAimSettings.IndicatorRainbowSpeed, Rounding = 1 }):OnChanged(function(Value) SilentAimSettings.IndicatorRainbowSpeed = Value end)
+FovIndicatorBox:AddToggle("IndicatorBreathingToggle", { Text = "启用呼吸效果", Default = SilentAimSettings.IndicatorBreathingEnabled }):OnChanged(function(Value) SilentAimSettings.IndicatorBreathingEnabled = Value end)
+FovIndicatorBox:AddSlider("IndicatorBreathingSpeedSlider", { Text = "呼吸速度", Min = 0.1, Max = 5, Default = SilentAimSettings.IndicatorBreathingSpeed, Rounding = 1 }):OnChanged(function(Value) SilentAimSettings.IndicatorBreathingSpeed = Value end)
+FovIndicatorBox:AddSlider("IndicatorBreathingMinSlider", { Text = "呼吸最小比例", Min = 0.1, Max = 1, Default = SilentAimSettings.IndicatorBreathingMin, Rounding = 2 }):OnChanged(function(Value) SilentAimSettings.IndicatorBreathingMin = Value end)
+FovIndicatorBox:AddSlider("IndicatorBreathingMaxSlider", { Text = "呼吸最大比例", Min = 1, Max = 3, Default = SilentAimSettings.IndicatorBreathingMax, Rounding = 2 }):OnChanged(function(Value) SilentAimSettings.IndicatorBreathingMax = Value end)
+FovIndicatorBox:AddToggle("ThreeLineCrosshairToggle", { Text = "启用三线准星", Default = SilentAimSettings.ThreeLineCrosshairEnabled }):OnChanged(function(Value) SilentAimSettings.ThreeLineCrosshairEnabled = Value end)
+FovIndicatorBox:AddSlider("ThreeLineCrosshairLengthSlider", { Text = "三线准星长度", Min = 5, Max = 100, Default = SilentAimSettings.ThreeLineCrosshairLength, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.ThreeLineCrosshairLength = Value end)
+FovIndicatorBox:AddSlider("ThreeLineCrosshairGapSlider", { Text = "三线准星间隙", Min = 0, Max = 50, Default = SilentAimSettings.ThreeLineCrosshairGap, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.ThreeLineCrosshairGap = Value end)
+
+local InfoBox = Tabs.Visuals:AddRightGroupbox("信息")
+InfoBox:AddDropdown("TargetInfoStyleDropdown", { Text = "信息显示样式", Default = SilentAimSettings.TargetInfoStyle, Values = {"面板", "头顶", "独立面板"} }):OnChanged(function(Value) SilentAimSettings.TargetInfoStyle = Value end)
+InfoBox:AddToggle("ShowTargetNameToggle", { Text = "显示目标名字", Default = SilentAimSettings.ShowTargetName }):OnChanged(function(Value) SilentAimSettings.ShowTargetName = Value end)
+InfoBox:AddToggle("ShowTargetHealthToggle", { Text = "显示目标血量", Default = SilentAimSettings.ShowTargetHealth }):OnChanged(function(Value) SilentAimSettings.ShowTargetHealth = Value end)
+InfoBox:AddToggle("ShowTargetDistanceToggle", { Text = "显示目标距离", Default = SilentAimSettings.ShowTargetDistance }):OnChanged(function(Value) SilentAimSettings.ShowTargetDistance = Value end)
+InfoBox:AddToggle("ShowTargetCategoryToggle", { Text = "显示目标类别", Default = SilentAimSettings.ShowTargetCategory }):OnChanged(function(Value) SilentAimSettings.ShowTargetCategory = Value end)
+InfoBox:AddButton("重置独立面板位置", function()
+    SilentAimSettings.IndependentPanelPosition = "200,200"
+    local pos = SilentAimSettings.IndependentPanelPosition:split(",")
+    IndependentPanelFrame.Position = UDim2.fromOffset(tonumber(pos[1]), tonumber(pos[2]))
+end)
+InfoBox:AddToggle("PinPanelToggle", {Text = "固定面板", Default = SilentAimSettings.IndependentPanelPinned}):OnChanged(function(value)
+    SilentAimSettings.IndependentPanelPinned = value
+    IndependentPanelFrame.Draggable = not value
+end)
+
+local ExtrasBox = Tabs.Visuals:AddRightGroupbox("额外")
+ExtrasBox:AddToggle("HighlightToggle", { Text = "启用高亮", Default = SilentAimSettings.HighlightEnabled }):AddColorPicker("HighlightColorPicker", { Default = SilentAimSettings.HighlightColor, Title = "高亮颜色" })
+Toggles.HighlightToggle:OnChanged(function(Value) SilentAimSettings.HighlightEnabled = Value end)
+Options.HighlightColorPicker:OnChanged(function(Value) SilentAimSettings.HighlightColor = Value end)
+ExtrasBox:AddToggle("HighlightRainbowToggle", { Text = "高亮彩虹色", Default = SilentAimSettings.HighlightRainbowEnabled }):OnChanged(function(Value) SilentAimSettings.HighlightRainbowEnabled = Value end)
+ExtrasBox:AddToggle("DamageNotifierToggle", { Text = "显示伤害通知", Default = SilentAimSettings.ShowDamageNotifier }):OnChanged(function(Value) SilentAimSettings.ShowDamageNotifier = Value end)
+ExtrasBox:AddDropdown('HitSound', { Text = '击中音效', Default = '关闭', Values = {'关闭', 'bell', 'metal', 'click', 'exp'} })
+ExtrasBox:AddToggle("ShowTracerToggle", { Text = "显示追踪线", Default = SilentAimSettings.ShowTracer }):AddColorPicker("TracerColorPicker", { Default = Color3.fromRGB(255, 255, 0), Title = "追踪线颜色" })
+ExtrasBox:AddDropdown("TracerPositionDropdown", {
+    Text = "追踪线位置",
+    Default = "中间",
+    Values = {"中间", "中间下面"}
+})
+Toggles.ShowTracerToggle:OnChanged(function(Value) SilentAimSettings.ShowTracer = Value end)
+Options.TracerColorPicker:OnChanged(function(Value) TracerLine.BackgroundColor3 = Value end)
+ExtrasBox:AddSlider('TracerYOffsetSlider', { Text = '追踪线Y轴偏移', Default = SilentAimSettings.Tracer_Y_Offset, Min = -10, Max = 10, Rounding = 3, Suffix = " studs" }):OnChanged(function(Value) SilentAimSettings.Tracer_Y_Offset = Value end)
+ExtrasBox:AddButton("恢复默认Y轴偏移", function()
+    SilentAimSettings.Tracer_Y_Offset = 0
+    if Options.TracerYOffsetSlider then
+        Options.TracerYOffsetSlider:SetValue(0)
+    end
+end)
+
+-- ===== 管理 (Management) =====
+local ManualLockGroupBox = Tabs.Management:AddLeftGroupbox("手动锁定")
+ManualLockGroupBox:AddDropdown("TargetSelectorDropdown", { Text = "锁定目标 (无=自动)", Default = "无", Values = {"无"} }):OnChanged(function(selectedName)
+    if selectedName == "无" then
+        lockedTargetObject = nil
+    else
+        lockedTargetObject = targetMap[selectedName]
+    end
+end)
+ManualLockGroupBox:AddButton("刷新列表", function()
+    targetMap = {}
+    local targetNames = {"无"}
+    local targetMode = SilentAimSettings.TargetMode
+    if targetMode == "NPC" or targetMode == "所有" then updateNPCs() end
+    if targetMode == "玩家" or targetMode == "所有" then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                if not (SilentAimSettings.TeamCheck and player.Team == LocalPlayer.Team) then
+                    table.insert(targetNames, player.Name)
+                    targetMap[player.Name] = player
+                end
+            end
+        end
+    end
+    if targetMode == "NPC" or targetMode == "所有" then
+        for _, npc in ipairs(npcList) do
+            if npc and npc.Name and npc.PrimaryPart then
+                table.insert(targetNames, npc.Name)
+                targetMap[npc.Name] = npc
+            end
+        end
+    end
+    Options.TargetSelectorDropdown:SetValues(targetNames, "无")
+    lockedTargetObject = nil
+end)
+
+local NameTargetingGroup = Tabs.Management:AddLeftGroupbox("名称索敌")
+NameTargetingGroup:AddToggle("EnableNameTargetingToggle", { Text = "启用名称索敌", Default = SilentAimSettings.EnableNameTargeting }):OnChanged(function(Value)
+    SilentAimSettings.EnableNameTargeting = Value
+end)
+local whitelistDataOption = NameTargetingGroup:AddInput("WhitelistData", { Text = "Whitelist Internal Data", Default = "[]" })
+whitelistDataOption.Visible = false
+local function updateWhitelistData()
+    local jsonString = HttpService:JSONEncode(SilentAimSettings.WhitelistedNames)
+    whitelistDataOption:SetValue(jsonString)
+end
+NameTargetingGroup:AddInput("WhitelistNameInput", { Text = "名称", PlaceholderText = "输入要锁定的NPC名称关键字" })
+NameTargetingGroup:AddButton("添加到列表", function()
+    local name = Options.WhitelistNameInput.Value
+    if name and name ~= "" then
+        table.insert(SilentAimSettings.WhitelistedNames, name)
+        Options.WhitelistDropdown:SetValues(SilentAimSettings.WhitelistedNames)
+        Options.WhitelistNameInput:SetValue("")
+        updateWhitelistData()
+    end
+end)
+NameTargetingGroup:AddDropdown("WhitelistDropdown", { Text = "名称列表", Values = SilentAimSettings.WhitelistedNames or {} })
+NameTargetingGroup:AddButton("从列表中删除", function()
+    local selectedName = Options.WhitelistDropdown.Value
+    if selectedName then
+        for i, name in ipairs(SilentAimSettings.WhitelistedNames) do
+            if name == selectedName then
+                table.remove(SilentAimSettings.WhitelistedNames, i)
+                break
+            end
+        end
+        Options.WhitelistDropdown:SetValues(SilentAimSettings.WhitelistedNames)
+        updateWhitelistData()
+    end
+end)
+whitelistDataOption:OnChanged(function(jsonString)
+    if not jsonString or jsonString == "" then jsonString = "[]" end
+    local success, decoded = pcall(HttpService.JSONDecode, HttpService, jsonString)
+    if success and type(decoded) == 'table' then
+        SilentAimSettings.WhitelistedNames = decoded
+        Options.WhitelistDropdown:SetValues(SilentAimSettings.WhitelistedNames)
+    end
+end)
+
+local WhitelistPathGroup = Tabs.Management:AddLeftGroupbox("白名单路径管理")
+WhitelistPathGroup:AddInput("WhitelistPathInput", { Text = "路径", PlaceholderText = "输入从Workspace开始的路径" })
+WhitelistPathGroup:AddButton("添加路径", function()
+    local path = Options.WhitelistPathInput.Value
+    if path and path ~= "" then
+        table.insert(SilentAimSettings.WhitelistPath, path)
+        Options.WhitelistPathDropdown:SetValues(SilentAimSettings.WhitelistPath)
+        Options.WhitelistPathInput:SetValue("")
+    end
+end)
+WhitelistPathGroup:AddDropdown("WhitelistPathDropdown", { Text = "路径列表", Values = SilentAimSettings.WhitelistPath or {} })
+WhitelistPathGroup:AddButton("删除路径", function()
+    local selectedPath = Options.WhitelistPathDropdown.Value
+    if selectedPath then
+        for i, p in ipairs(SilentAimSettings.WhitelistPath) do
+            if p == selectedPath then
+                table.remove(SilentAimSettings.WhitelistPath, i)
+                break
+            end
+        end
+        Options.WhitelistPathDropdown:SetValues(SilentAimSettings.WhitelistPath)
+    end
+end)
+
+local BlacklistGroup = Tabs.Management:AddRightGroupbox("黑名单管理")
+local blacklistDataOption = BlacklistGroup:AddInput("BlacklistData", { Text = "Blacklist Internal Data", Default = "[]" })
+blacklistDataOption.Visible = false
+local function updateBlacklistData()
+    local jsonString = HttpService:JSONEncode(SilentAimSettings.BlacklistedNames)
+    blacklistDataOption:SetValue(jsonString)
+end
+BlacklistGroup:AddInput("BlacklistNameInput", { Text = "名称", PlaceholderText = "输入要拉黑的精确名称" })
+BlacklistGroup:AddButton("添加到黑名单", function()
+    local name = Options.BlacklistNameInput.Value
+    if name and name ~= "" and not isBlacklisted(name) then
+        table.insert(SilentAimSettings.BlacklistedNames, name)
+        Options.BlacklistDropdown:SetValues(SilentAimSettings.BlacklistedNames)
+        Options.BlacklistNameInput:SetValue("")
+        updateBlacklistData()
+    end
+end)
+BlacklistGroup:AddDropdown("BlacklistDropdown", { Text = "黑名单列表", Values = SilentAimSettings.BlacklistedNames or {} })
+BlacklistGroup:AddButton("从黑名单中删除", function()
+    local selectedName = Options.BlacklistDropdown.Value
+    if selectedName then
+        for i, name in ipairs(SilentAimSettings.BlacklistedNames) do
+            if name == selectedName then
+                table.remove(SilentAimSettings.BlacklistedNames, i)
+                break
+            end
+        end
+        Options.BlacklistDropdown:SetValues(SilentAimSettings.BlacklistedNames)
+        updateBlacklistData()
+    end
+end)
+blacklistDataOption:OnChanged(function(jsonString)
+    if not jsonString or jsonString == "" then jsonString = "[]" end
+    local success, decoded = pcall(HttpService.JSONDecode, HttpService, jsonString)
+    if success and type(decoded) == 'table' then
+        SilentAimSettings.BlacklistedNames = decoded
+        Options.BlacklistDropdown:SetValues(SilentAimSettings.BlacklistedNames)
+    end
+end)
+
+-- ===== 杂项 (Misc) =====
+local CharacterModGroup = Tabs.Misc:AddLeftGroupbox("角色修改")
+
+-- 第三人称视角
+local ThirdPersonGroup = Tabs.Misc:AddLeftGroupbox("第三人称")
+local originalCameraMode = LocalPlayer.CameraMode
+local originalMaxZoomDistance = LocalPlayer.CameraMaxZoomDistance
+
+local function applyThirdPerson()
+    LocalPlayer.CameraMaxZoomDistance = 99999
+    LocalPlayer.CameraMode = Enum.CameraMode.Classic
+end
+
+ThirdPersonGroup:AddToggle("ThirdPersonToggle", {
+    Text = "第三人称视角",
+    Default = false,
+    Tooltip = "开启后切换为 Classic 相机模式并允许远距离缩放"
+}):OnChanged(function(Value)
+    if Value then
+        applyThirdPerson()
+    else
+        LocalPlayer.CameraMode = originalCameraMode
+        LocalPlayer.CameraMaxZoomDistance = originalMaxZoomDistance
+    end
+end)
+
+-- 死亡后保留机制
+LocalPlayer.CharacterAdded:Connect(function(character)
+    if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
+        task.defer(function()
+            task.wait(0.5)  -- 等待相机系统初始化
+            applyThirdPerson()
+        end)
+    end
+end)
+
+-- 初始状态同步（防止脚本重载时开关状态丢失）
+if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
+    applyThirdPerson()
+end
+
+-- 可选距离滑块
+ThirdPersonGroup:AddSlider("ThirdPersonDistance", {
+    Text = "最大距离",
+    Min = 0,
+    Max = 100,
+    Default = 20,
+    Rounding = 0,
+    Suffix = " studs"
+}):OnChanged(function(Value)
+    if Toggles.ThirdPersonToggle and Toggles.ThirdPersonToggle.Value then
+        LocalPlayer.CameraMaxZoomDistance = Value * 100
+    end
+end)
+
+local originalCharacterData = {}
+local transparencyLoopConnection = nil
+local function restoreCharacterAppearance()
+    for part, data in pairs(originalCharacterData) do
+        if part and part.Parent then
+            part.Material = data.material
+            part.Color = data.color
+            part.Transparency = data.transparency
+            if part:IsA("BasePart") then
+                part.Reflectance = data.reflectance or 0
+                if data.TextureID then part.TextureID = data.TextureID end
+                part:SetAttribute("WaterTextureActive", nil)
+            end
+        end
+    end
+    originalCharacterData = {}
+end
+local function getDynamicColor(mode, c1, c2, speed)
+    if mode == "单色" then return c1 end
+    if mode == "彩虹" then return Color3.fromHSV((tick() * speed * 0.1) % 1, 1, 1) end
+    if mode == "渐变" then
+        local t = (math.sin(tick() * speed) + 1) / 2
+        return c1:Lerp(c2, t)
+    end
+    return c1
+end
+local function transparencyLoop()
+    if not LocalPlayer.Character then
+        if next(originalCharacterData) then originalCharacterData = {} end
+        return
+    end
+    local colorMode = Options.CharColorModeDropdown.Value
+    local dynColor = getDynamicColor(colorMode, Options.CharColorPicker.Value, Options.CharColorPicker2.Value, Options.CharGradientSpeedSlider.Value)
+    local matMode = SilentAimSettings.CharMaterialMode
+    local tickTime = tick()
+
+    for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+        if part:IsA("BasePart") and not part.Parent:IsA("Accessory") then
+            local isMeshPart = part:IsA("MeshPart") or part:IsA("UnionOperation")
+            if not originalCharacterData[part] then
+                originalCharacterData[part] = {
+                    material = part.Material,
+                    color = part.Color,
+                    transparency = part.Transparency,
+                    reflectance = part.Reflectance,
+                    TextureID = isMeshPart and part.TextureID or nil
+                }
+            end
+            if matMode ~= "Water" and isMeshPart and part:GetAttribute("WaterTextureActive") then
+                part.TextureID = originalCharacterData[part].TextureID or ""
+                part:SetAttribute("WaterTextureActive", nil)
+            end
+            if matMode == "ForceField" then
+                part.Material = Enum.Material.ForceField; part.Reflectance = 0; part.Transparency = 0
+            elseif matMode == "Neon" then
+                part.Material = Enum.Material.Neon; part.Reflectance = 0; part.Transparency = 0
+            elseif matMode == "Glass" then
+                part.Material = Enum.Material.Glass; part.Transparency = 0.55; part.Reflectance = 0
+            elseif matMode == "SmoothPlastic" then
+                part.Material = Enum.Material.SmoothPlastic; part.Reflectance = 0; part.Transparency = 0
+            elseif matMode == "ForceOverlay" then
+                part.Material = Enum.Material.Plastic; part.Reflectance = 999999; part.Transparency = 0
+            elseif matMode == "Pulse" then
+                part.Material = Enum.Material.Neon; part.Transparency = (math.sin(tickTime * 3) + 1) / 2; part.Reflectance = 0
+            elseif matMode == "Tween" then
+                part.Material = Enum.Material.ForceField; part.Reflectance = 0; part.Transparency = 0
+                local t = (math.sin(tickTime * 3) + 1) / 2
+                dynColor = dynColor:Lerp(Color3.fromRGB(255,255,255), t)
+            elseif matMode == "Water" then
+                part.Material = Enum.Material.ForceField; part.Transparency = 0
+                if isMeshPart then
+                    local textureIndex = math.floor((tickTime * 12) % 25) + 1
+                    part.TextureID = string.format("rbxasset://textures/water/normal_%02d.dds", textureIndex)
+                    part:SetAttribute("WaterTextureActive", true)
+                end
+            elseif matMode == "原版" then
+                part.Material = originalCharacterData[part].material
+                part.Reflectance = originalCharacterData[part].reflectance
+                part.Transparency = originalCharacterData[part].transparency
+            end
+            if colorMode == "原色" and matMode ~= "Tween" then
+                part.Color = originalCharacterData[part].color
+            else
+                part.Color = dynColor
+            end
+        end
+    end
+end
+
+CharacterModGroup:AddToggle("TransparentCharacterEnabled", { Text = "开启人物外观修改", Default = false })
+    :AddColorPicker("CharColorPicker", { Default = Color3.fromRGB(255,255,255), Title = "颜色1" })
+    :AddColorPicker("CharColorPicker2", { Default = Color3.fromRGB(0,0,0), Title = "颜色2" })
+Toggles.TransparentCharacterEnabled:OnChanged(function(value)
+    if value then
+        transparencyLoopConnection = RunService.Heartbeat:Connect(transparencyLoop)
+    else
+        if transparencyLoopConnection then
+            transparencyLoopConnection:Disconnect(); transparencyLoopConnection = nil
+        end
+        restoreCharacterAppearance()
+    end
+end)
+CharacterModGroup:AddDropdown("CharColorModeDropdown", { Text = "人物颜色模式", Default = "原色", Values = {"原色", "单色", "彩虹", "渐变"} }):OnChanged(function(value)
+    if Toggles.TransparentCharacterEnabled.Value then
+        restoreCharacterAppearance(); task.wait(); transparencyLoop()
+    end
+end)
+CharacterModGroup:AddSlider("CharGradientSpeedSlider", { Text = "人物变色速度", Min = 0.1, Max = 10, Default = 3, Rounding = 1 })
+CharacterModGroup:AddDropdown("CharMaterialDropdown", { Text = "材质", Default = "ForceField", Values = {"原版", "Pulse", "ForceField", "Neon", "Glass", "Tween", "SmoothPlastic", "ForceOverlay", "Water"} }):OnChanged(function(value)
+    SilentAimSettings.CharMaterialMode = value
+    if Toggles.TransparentCharacterEnabled.Value then
+        restoreCharacterAppearance(); task.wait(); transparencyLoop()
+    end
+end)
+
+local EntertainmentGroup = Tabs.Misc:AddLeftGroupbox("娱乐")
+local spinThread = nil; local spinEnabled = false; local spinSpeed = math.rad(10)
+local function spinCharacter()
+    while spinEnabled and task.wait() do
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, spinSpeed, 0) else break end
+    end
+    spinThread = nil
+end
+EntertainmentGroup:AddToggle("SpinToggle", { Text = "启用旋转", Default = false }):OnChanged(function(value)
+    spinEnabled = value
+    if spinEnabled and not spinThread then
+        spinThread = coroutine.create(spinCharacter); coroutine.resume(spinThread)
+    end
+end)
+EntertainmentGroup:AddSlider("SpinSpeedSlider", { Text = "旋转速度", Default = 10, Min = 1, Max = 100, Rounding = 0 }):OnChanged(function(value) spinSpeed = math.rad(value) end)
+
+local MovementTabbox = Tabs.Misc:AddRightTabbox()
+local AATab = MovementTabbox:AddTab("反自瞄 (AA)")
+local DesyncTab = MovementTabbox:AddTab("网络同步")
+local BhopTab = MovementTabbox:AddTab("移动身法")
+
+AATab:AddToggle("AAToggle", { Text = "启用反自瞄", Default = SilentAimSettings.AA_Enabled }):OnChanged(function(Value) SilentAimSettings.AA_Enabled = Value end)
+AATab:AddToggle("AAUpsideDown", { Text = "倒立 (Upside Down)", Default = SilentAimSettings.AA_UpsideDown }):OnChanged(function(Value) SilentAimSettings.AA_UpsideDown = Value end)
+AATab:AddDropdown("AAYaw", { Text = "Yaw 偏航模式", Default = SilentAimSettings.AA_Yaw, Values = {"Backward", "Spin", "Jitter", "Freestanding"} }):OnChanged(function(Value) SilentAimSettings.AA_Yaw = Value end)
+AATab:AddSlider("AAJitter", { Text = "Jitter 角度 / Spin 速度", Min = 0, Max = 180, Default = SilentAimSettings.AA_Jitter, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.AA_Jitter = Value end)
+
+DesyncTab:AddToggle("DesyncToggle", { Text = "启用断步 (Desync)", Default = SilentAimSettings.Desync_Enabled }):OnChanged(function(Value) SilentAimSettings.Desync_Enabled = Value end)
+DesyncTab:AddSlider("DesyncTicksSlider", { Text = "Desync Ticks (频率)", Min = 1, Max = 5000, Default = SilentAimSettings.Desync_Ticks, Rounding = 0 }):OnChanged(function(Value) SilentAimSettings.Desync_Ticks = Value end)
+DesyncTab:AddToggle("DesyncVisToggle", { Text = "显示虚假残影", Default = SilentAimSettings.Desync_Visualize }):AddColorPicker("DesyncVisColor", { Default = SilentAimSettings.Desync_Color, Title = "残影颜色" })
+Toggles.DesyncVisToggle:OnChanged(function(Value) SilentAimSettings.Desync_Visualize = Value end)
+Options.DesyncVisColor:OnChanged(function(Value) SilentAimSettings.Desync_Color = Value end)
+
+-- 修复连跳按钮显示
+BhopTab:AddToggle("AutoBhopToggle", { Text = "启用自动连跳", Default = SilentAimSettings.AutoBhopEnabled }):OnChanged(function(value)
+    SilentAimSettings.AutoBhopEnabled = value
+    local btn = getgenv().MobileBhopButton
+    local stroke = getgenv().MBHStroke
+    if btn and stroke then
+        if value then
+            btn.Text = "自动连跳\n[开]"; btn.TextColor3 = Color3.fromRGB(50,255,50); stroke.Color = Color3.fromRGB(50,255,50)
+        else
+            btn.Text = "自动连跳\n[关]"; btn.TextColor3 = Color3.fromRGB(255,80,80); stroke.Color = Color3.fromRGB(255,80,80)
+        end
+    end
+end)
+BhopTab:AddSlider("BhopBoostSlider", { Text = "连跳空中加速力度", Default = 0, Min = 0, Max = 100, Rounding = 0 }):OnChanged(function(value) SilentAimSettings.BhopBoostAmount = value end)
+BhopTab:AddToggle("ShowMobileBhopButton", { Text = "显示连跳悬浮窗 (移动端)", Default = SilentAimSettings.ShowMobileBhopButton }):OnChanged(function(Value)
+    SilentAimSettings.ShowMobileBhopButton = Value
+    if getgenv().MobileBhopButton then
+        getgenv().MobileBhopButton.Visible = Value
+    end
+end)
+BhopTab:AddToggle("PinMobileBhopButton", { Text = "锁定连跳按钮位置", Default = SilentAimSettings.MobileBhopButtonPinned }):OnChanged(function(Value) SilentAimSettings.MobileBhopButtonPinned = Value end)
+BhopTab:AddButton("重置连跳按钮位置 (居中偏右)", function()
+    local screenSize = Camera.ViewportSize
+    local newX = math.floor(screenSize.X / 2 + 80); local newY = math.floor(screenSize.Y / 2)
+    if getgenv().MobileBhopButton then
+        getgenv().MobileBhopButton.Position = UDim2.fromOffset(newX, newY)
+    end
+    SilentAimSettings.MobileBhopButtonPosition = newX .. "," .. newY
+end)
+
+local RadarGroup = Tabs.Misc:AddRightGroupbox("雷达图 (Radar Beta)")
+RadarGroup:AddToggle("RadarEnabled", { Text = "显示雷达图", Default = false }):OnChanged(function(v) 
+    SilentAimSettings.RadarEnabled = v
+    if RadarBG then
+        RadarBG.Visible = v  -- 修复：开启时显示雷达背景
+    end
+    RadarGui.Enabled = v
+end)
+RadarGroup:AddSlider("RadarScale", { Text = "雷达探测范围", Min = 50, Max = 1000, Default = 200, Rounding = 0 }):OnChanged(function(v) SilentAimSettings.RadarRange = v end)
+RadarGroup:AddSlider("RadarSize", { Text = "雷达窗口大小", Min = 100, Max = 300, Default = 150, Rounding = 0 }):OnChanged(function(v) 
+    SilentAimSettings.RadarSize = v
+    if RadarBG then RadarBG.Size = UDim2.fromOffset(v, v) end 
+end)
+
+-- 天空盒 (修复下拉)
+local SkyboxGroup = Tabs.Misc:AddRightGroupbox("天空盒")
+local function getShortSkyboxList()
+    local short = {}
+    for i, name in ipairs(SkyboxNames) do
+        if i <= 8 then table.insert(short, name) end
+    end
+    return short
+end
+SkyboxGroup:AddDropdown("SkyboxSelector", {
+    AllowNull = false,
+    Text = "快速选择 (前8个)",
+    Default = "Game's Default Sky",
+    Values = getShortSkyboxList()
+}):OnChanged(function(SelectedSkybox)
+    if Skyboxes[SelectedSkybox] then Visuals:SwitchSkybox(SelectedSkybox) end
+end)
+SkyboxGroup:AddButton("浏览全部天空盒", function()
+    local AllSkyGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    AllSkyGui.Name = "AllSkyboxGui"; AllSkyGui.ResetOnSpawn = false; AllSkyGui.IgnoreGuiInset = true; AllSkyGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    local MainFrame = Instance.new("Frame", AllSkyGui)
+    MainFrame.Size = UDim2.fromOffset(300, 400); MainFrame.Position = UDim2.fromScale(0.5, 0.5); MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30); MainFrame.BorderSizePixel = 0
+    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+    local CloseBtn = Instance.new("TextButton", MainFrame)
+    CloseBtn.Size = UDim2.fromOffset(30,30); CloseBtn.Position = UDim2.new(1,-35,0,5); CloseBtn.AnchorPoint = Vector2.new(1,0)
+    CloseBtn.Text = "X"; CloseBtn.TextColor3 = Color3.new(1,1,1); CloseBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); CloseBtn.BorderSizePixel = 0
+    Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(1,0)
+    CloseBtn.MouseButton1Click:Connect(function() AllSkyGui:Destroy() end)
+    local Title = Instance.new("TextLabel", MainFrame)
+    Title.Size = UDim2.new(1,0,0,30); Title.Position = UDim2.new(0,0,0,5); Title.BackgroundTransparency = 1
+    Title.Text = "所有天空盒"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.SourceSansBold; Title.TextSize = 18
+    local Scroll = Instance.new("ScrollingFrame", MainFrame)
+    Scroll.Size = UDim2.new(1,-10,1,-50); Scroll.Position = UDim2.new(0,5,0,45); Scroll.BackgroundTransparency = 1; Scroll.BorderSizePixel = 0
+    Scroll.CanvasSize = UDim2.new(0,0,0,#SkyboxNames * 30)
+    local Layout = Instance.new("UIListLayout", Scroll); Layout.SortOrder = Enum.SortOrder.LayoutOrder; Layout.Padding = UDim.new(0,4)
+    for _, name in ipairs(SkyboxNames) do
+        local Btn = Instance.new("TextButton", Scroll)
+        Btn.Size = UDim2.new(1,0,0,28); Btn.Text = name; Btn.TextColor3 = Color3.new(1,1,1); Btn.BackgroundColor3 = Color3.fromRGB(50,50,50); Btn.BorderSizePixel = 0
+        Instance.new("UICorner", Btn).CornerRadius = UDim.new(0,4)
+        Btn.MouseButton1Click:Connect(function()
+            if Skyboxes[name] then
+                Visuals:SwitchSkybox(name)
+                if Options.SkyboxSelector then
+                    local values = Options.SkyboxSelector.Values
+                    if table.find(values, name) then Options.SkyboxSelector:SetValue(name) else Options.SkyboxSelector:SetValue(values[1]) end
+                end
+                AllSkyGui:Destroy()
+            end
+        end)
+    end
+end)
+
+-- 连跳移动端按钮
+local MobileBhopGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+MobileBhopGui.Name = "MobileBhopGui"; MobileBhopGui.ResetOnSpawn = false; MobileBhopGui.IgnoreGuiInset = true; MobileBhopGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local MobileBhopButton = Instance.new("TextButton", MobileBhopGui)
+MobileBhopButton.Name = "BhopButton"; MobileBhopButton.AnchorPoint = Vector2.new(0.5,0.5)
+MobileBhopButton.Size = UDim2.fromOffset(SilentAimSettings.TriggerbotButtonSize, SilentAimSettings.TriggerbotButtonSize)
+MobileBhopButton.BackgroundColor3 = Color3.fromRGB(20,20,20); MobileBhopButton.BackgroundTransparency = 0.2; MobileBhopButton.BorderSizePixel = 0
+MobileBhopButton.Text = "自动连跳\n[关]"; MobileBhopButton.TextColor3 = Color3.fromRGB(255,80,80); MobileBhopButton.Font = Enum.Font.GothamBold; MobileBhopButton.TextSize = 13
+MobileBhopButton.Visible = SilentAimSettings.ShowMobileBhopButton  -- 同步初始显示
+MobileBhopButton.Active = true
+local MBHCorner = Instance.new("UICorner", MobileBhopButton); MBHCorner.CornerRadius = UDim.new(0,12)
+local MBHStroke = Instance.new("UIStroke", MobileBhopButton); MBHStroke.Color = Color3.fromRGB(255,80,80); MBHStroke.Thickness = 2; MBHStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- 全局引用（修复回调中使用）
+getgenv().MobileBhopButton = MobileBhopButton
+getgenv().MBHStroke = MBHStroke
+
+local isDraggingBhop = false; local dragInputBhop, dragStartBhop, startPosBhop
+MobileBhopButton.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        if not SilentAimSettings.MobileBhopButtonPinned then
+            isDraggingBhop = true; dragStartBhop = input.Position; startPosBhop = MobileBhopButton.Position
+        end
+    end
+end)
+MobileBhopButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInputBhop = input end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInputBhop and isDraggingBhop then
+        local delta = input.Position - dragStartBhop
+        MobileBhopButton.Position = UDim2.new(startPosBhop.X.Scale, startPosBhop.X.Offset + delta.X, startPosBhop.Y.Scale, startPosBhop.Y.Offset + delta.Y)
+    end
+end)
+MobileBhopButton.InputEnded:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStartBhop
+        if isDraggingBhop then
+            isDraggingBhop = false; SilentAimSettings.MobileBhopButtonPosition = MobileBhopButton.Position.X.Offset .. "," .. MobileBhopButton.Position.Y.Offset
+        end
+        if delta and delta.Magnitude < 10 then
+            if getgenv().Toggles and getgenv().Toggles.AutoBhopToggle then
+                getgenv().Toggles.AutoBhopToggle:SetValue(not getgenv().Toggles.AutoBhopToggle.Value)
+            end
+        end
+    end
+end)
+
+-- ===== ESP 分区 (SensoryESP) =====
+local sensorySource = game:HttpGet("https://raw.githubusercontent.com/rthusrtghdfhtyjkehrfh/sensoryESP/main/ESP.lua")
+sensorySource = sensorySource:gsub("if not ESPConfig.LocalPlayer and player == LocalPlayer then continue end", "if not ESPConfig.LocalPlayer and player == LocalPlayer then continue end\n            if ESPConfig.TeamCheck and player ~= LocalPlayer and LocalPlayer.Team ~= nil and player.Team ~= nil and player.Team == LocalPlayer.Team then continue end")
+local esp = loadstring(sensorySource)()
+esp:Load({
+    Enabled = false, Keybind = { Enabled = false, Key = Enum.KeyCode.Insert },
+    Players = false, TeamCheck = SilentAimSettings.TeamCheck, LocalPlayer = false, LimitFPS = 70,
+    DynamicBoxes = false, DynamicBoxesCheap = false, VisibilityCheckRate = 0.3,
+    Boxes = false, BoxType = "Normal", BoxColor = Color3.fromRGB(255,255,0), BoxThickness = 1.5,
+    Outlines = { Style = "Full", Color = Color3.fromRGB(0,0,0), Thickness = 1 },
+    BoxFill = { Enabled = false, Color = Color3.fromRGB(255,255,0), Transparency = 0.85, Gradient = { Enabled = false, Color1 = Color3.fromRGB(255,200,0), Color2 = Color3.fromRGB(255,100,0), Color3 = Color3.fromRGB(200,50,0), Rotation = 0, Animated = false, Speed = 64, Direction = "Right" } },
+    HealthBar = { Enabled = false, Position = "Left", SideGap = 2, Width = 2, ShowText = false, TextFollowBar = false, HideWhenFullHP = false, FollowGradientColorText = false, Font = "Smallest Pixel-7", TextSize = 9, Outline = { Style = "Full", Color = Color3.fromRGB(0,0,0) }, Gradient = { Enabled = true, Color1 = Color3.fromRGB(0,255,0), Color2 = Color3.fromRGB(255,255,0), Color3 = Color3.fromRGB(255,0,0) } },
+    Names = false, TextSize = 12, TextColor = Color3.fromRGB(255,255,255), TextOutline = true, TextOutlineStyle = "Full", TextGap = 3, Font = "Proggy Clean",
+    TeamIndicator = { Enabled = false, Position = "Right", UseTeamColor = false, Color = Color3.fromRGB(255,255,0), Compact = true, TextSize = 10 },
+    FriendlyIndicator = { Enabled = false, Position = "Right", CheckTeam = false, CheckFriends = false, Text = "[F]", Color = Color3.fromRGB(0,255,0) },
+    Weapon = { Enabled = false, Gap = 1, OutlineStyle = "Full", Font = "Proggy Clean", TextSize = 12, Color = Color3.fromRGB(0,213,255), InventoryPath = "ReplicatedStorage.Players.%NAME%.Inventory", UseToolFallback = false },
+    Flags = { Enabled = false, Position = "Right", Gap = 2, SideGap = 4, TextGap = 2, OutlineStyle = "Full", Font = "Smallest Pixel-7", TextSize = 9, Options = { Idle = false, Moving = false, Jumping = false, Swimming = false }, Colors = { Idle = Color3.fromRGB(255,255,255), Moving = Color3.fromRGB(255,255,0), Jumping = Color3.fromRGB(0,255,255), Swimming = Color3.fromRGB(65,65,255) } },
+    Skeleton = { Enabled = false, Color = Color3.fromRGB(0,255,0), Outline = true, OutlineColor = Color3.fromRGB(0,0,0), Gradient = { Enabled = true, Color1 = Color3.fromRGB(0,255,0), Color2 = Color3.fromRGB(255,255,0) } },
+    OffScreenArrows = { Enabled = false, Size = 14, Color = Color3.fromRGB(255,50,50), OrbitRadius = 100, ArrowMode = "Compass", Outline = true, OutlineColor = Color3.fromRGB(0,0,0), Names = { Enabled = false, Font = "Smallest Pixel-7", TextSize = 9, Color = Color3.fromRGB(255,255,255), Outline = true, OutlineColor = Color3.fromRGB(0,0,0), Side = "Bottom", Gap = 4 }, Distance = { Enabled = false, Font = "Smallest Pixel-7", TextSize = 9, Color = Color3.fromRGB(255,255,255), Outline = true, OutlineColor = Color3.fromRGB(0,0,0), Side = "Bottom", Gap = 2 } },
+    Distance = { Enabled = false, Unit = "Meters", StudsPerMeter = 3, Ending = "m", Gap = 3, OutlineStyle = "Full", Font = "Proggy Clean", TextSize = 12, Color = Color3.fromRGB(255,255,0) },
+    Chams = { Enabled = false, Type = "Highlight", Highlight = { FillColor = Color3.fromRGB(255,255,0), FillTransparency = 0.5, OutlineColor = Color3.fromRGB(255,255,0), OutlineTransparency = 0, VisibleCheck = false }, Adornment = { Color = Color3.fromRGB(255,255,0), VisibleColor = Color3.fromRGB(0,255,0), Transparency = 0.5, AlwaysOnTop = false, VisibleCheck = false }, MeshChams = { FillColor = Color3.fromRGB(255,255,0), FillTransparency = 0.5, OutlineColor = Color3.fromRGB(255,255,0), OutlineTransparency = 0, VisibleCheck = false } },
+    Directories = {},
+})
+SensoryESPInstance = esp
+SensoryESPConfig = esp:GetConfig()
+
+-- ESP UI 控件 (精简版，完整功能)
+local SensoryGeneralBox = Tabs.ESP:AddLeftGroupbox("基础与方框")
+local SensoryTextBox = Tabs.ESP:AddLeftGroupbox("血条与文本")
+local SensoryExtraBox = Tabs.ESP:AddRightGroupbox("骨骼与离屏")
+local SensoryChamsBox = Tabs.ESP:AddRightGroupbox("Chams 与状态")
+
+SensoryGeneralBox:AddToggle("SensoryEnabled", {Text="启用 ESP", Default=SensoryESPConfig.Enabled}):OnChanged(function(v) SensoryESPConfig.Enabled=v end)
+SensoryGeneralBox:AddToggle("SensoryPlayers", {Text="玩家 ESP", Default=SensoryESPConfig.Players}):OnChanged(function(v) SensoryESPConfig.Players=v end)
+SensoryGeneralBox:AddToggle("SensoryTeamCheck", {Text="不显示队友", Default=SensoryESPConfig.TeamCheck}):OnChanged(function(v) SensoryESPConfig.TeamCheck=v end)
+SensoryGeneralBox:AddToggle("SensoryLocalPlayer", {Text="显示自己", Default=SensoryESPConfig.LocalPlayer}):OnChanged(function(v) SensoryESPConfig.LocalPlayer=v end)
+SensoryGeneralBox:AddToggle("SensoryKeybindEnabled", {Text="Insert 快捷开关", Default=SensoryESPConfig.Keybind.Enabled}):OnChanged(function(v) SensoryESPConfig.Keybind.Enabled=v end)
+SensoryGeneralBox:AddSlider("SensoryFPS", {Text="刷新帧率", Min=0, Max=240, Default=SensoryESPConfig.LimitFPS, Rounding=0, Suffix=" FPS"}):OnChanged(function(v) SensoryESPConfig.LimitFPS=v end)
+SensoryGeneralBox:AddToggle("SensoryDynamicBoxes", {Text="动态方框", Default=SensoryESPConfig.DynamicBoxes}):OnChanged(function(v) SensoryESPConfig.DynamicBoxes=v end)
+SensoryGeneralBox:AddToggle("SensoryDynamicCheap", {Text="低开销动态方框", Default=SensoryESPConfig.DynamicBoxesCheap}):OnChanged(function(v) SensoryESPConfig.DynamicBoxesCheap=v end)
+SensoryGeneralBox:AddToggle("SensoryBoxes", {Text="方框", Default=SensoryESPConfig.Boxes}):AddColorPicker("SensoryBoxColor", {Default=SensoryESPConfig.BoxColor, Title="方框颜色"})
+Toggles.SensoryBoxes:OnChanged(function(v) SensoryESPConfig.Boxes=v end)
+Options.SensoryBoxColor:OnChanged(function(v) SensoryESPConfig.BoxColor=v end)
+SensoryGeneralBox:AddDropdown("SensoryBoxType", {Text="方框样式", Default=SensoryESPConfig.BoxType, Values={"Normal","Corner","Circle"}}):OnChanged(function(v) SensoryESPConfig.BoxType=v end)
+SensoryGeneralBox:AddSlider("SensoryBoxThickness", {Text="方框粗细", Min=1, Max=5, Default=SensoryESPConfig.BoxThickness, Rounding=1}):OnChanged(function(v) SensoryESPConfig.BoxThickness=v end)
+SensoryGeneralBox:AddDropdown("SensoryOutlineStyle", {Text="方框描边", Default=SensoryESPConfig.Outlines.Style, Values={"Full","None"}}):OnChanged(function(v) SensoryESPConfig.Outlines.Style=v end)
+SensoryGeneralBox:AddSlider("SensoryOutlineThickness", {Text="描边粗细", Min=1, Max=5, Default=SensoryESPConfig.Outlines.Thickness, Rounding=1}):OnChanged(function(v) SensoryESPConfig.Outlines.Thickness=v end)
+SensoryGeneralBox:AddToggle("SensoryBoxFill", {Text="方框填充", Default=SensoryESPConfig.BoxFill.Enabled}):AddColorPicker("SensoryFillColor", {Default=SensoryESPConfig.BoxFill.Color, Title="填充颜色"})
+Toggles.SensoryBoxFill:OnChanged(function(v) SensoryESPConfig.BoxFill.Enabled=v end)
+Options.SensoryFillColor:OnChanged(function(v) SensoryESPConfig.BoxFill.Color=v end)
+SensoryGeneralBox:AddSlider("SensoryFillTransparency", {Text="填充透明度", Min=0, Max=1, Default=SensoryESPConfig.BoxFill.Transparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.BoxFill.Transparency=v end)
+SensoryGeneralBox:AddToggle("SensoryFillGradient", {Text="填充渐变", Default=SensoryESPConfig.BoxFill.Gradient.Enabled}):OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Enabled=v end)
+SensoryGeneralBox:AddToggle("SensoryFillAnimated", {Text="渐变动画", Default=SensoryESPConfig.BoxFill.Gradient.Animated}):OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Animated=v end)
+SensoryGeneralBox:AddSlider("SensoryFillSpeed", {Text="渐变速度", Min=0, Max=360, Default=SensoryESPConfig.BoxFill.Gradient.Speed, Rounding=0}):OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Speed=v end)
+SensoryGeneralBox:AddLabel("方框描边颜色"):AddColorPicker("SensoryOutlineColor", {Default=SensoryESPConfig.Outlines.Color, Title="方框描边颜色"})
+Options.SensoryOutlineColor:OnChanged(function(v) SensoryESPConfig.Outlines.Color=v end)
+SensoryGeneralBox:AddLabel("渐变颜色"):AddColorPicker("SensoryFillGradient1", {Default=SensoryESPConfig.BoxFill.Gradient.Color1, Title="渐变起始"}):AddColorPicker("SensoryFillGradient2", {Default=SensoryESPConfig.BoxFill.Gradient.Color2, Title="渐变中间"}):AddColorPicker("SensoryFillGradient3", {Default=SensoryESPConfig.BoxFill.Gradient.Color3, Title="渐变末端"})
+Options.SensoryFillGradient1:OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Color1=v end)
+Options.SensoryFillGradient2:OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Color2=v end)
+Options.SensoryFillGradient3:OnChanged(function(v) SensoryESPConfig.BoxFill.Gradient.Color3=v end)
+
+SensoryTextBox:AddToggle("SensoryHealth", {Text="血条", Default=SensoryESPConfig.HealthBar.Enabled}):OnChanged(function(v) SensoryESPConfig.HealthBar.Enabled=v end)
+SensoryTextBox:AddDropdown("SensoryHealthPosition", {Text="血条位置", Default=SensoryESPConfig.HealthBar.Position, Values={"Left","Right","Top","Bottom"}}):OnChanged(function(v) SensoryESPConfig.HealthBar.Position=v end)
+SensoryTextBox:AddSlider("SensoryHealthWidth", {Text="血条宽度", Min=1, Max=8, Default=SensoryESPConfig.HealthBar.Width, Rounding=0}):OnChanged(function(v) SensoryESPConfig.HealthBar.Width=v end)
+SensoryTextBox:AddToggle("SensoryHealthText", {Text="血量数字", Default=SensoryESPConfig.HealthBar.ShowText}):OnChanged(function(v) SensoryESPConfig.HealthBar.ShowText=v end)
+SensoryTextBox:AddToggle("SensoryHealthFollow", {Text="数字跟随血条", Default=SensoryESPConfig.HealthBar.TextFollowBar}):OnChanged(function(v) SensoryESPConfig.HealthBar.TextFollowBar=v end)
+SensoryTextBox:AddToggle("SensoryHealthHideFull", {Text="满血隐藏数字", Default=SensoryESPConfig.HealthBar.HideWhenFullHP}):OnChanged(function(v) SensoryESPConfig.HealthBar.HideWhenFullHP=v end)
+SensoryTextBox:AddToggle("SensoryHealthGradient", {Text="血条渐变", Default=SensoryESPConfig.HealthBar.Gradient.Enabled}):OnChanged(function(v) SensoryESPConfig.HealthBar.Gradient.Enabled=v end)
+SensoryTextBox:AddLabel("血条渐变颜色"):AddColorPicker("SensoryHealthHigh", {Default=SensoryESPConfig.HealthBar.Gradient.Color1, Title="高血量"}):AddColorPicker("SensoryHealthMid", {Default=SensoryESPConfig.HealthBar.Gradient.Color2, Title="中血量"}):AddColorPicker("SensoryHealthLow", {Default=SensoryESPConfig.HealthBar.Gradient.Color3, Title="低血量"})
+Options.SensoryHealthHigh:OnChanged(function(v) SensoryESPConfig.HealthBar.Gradient.Color1=v end)
+Options.SensoryHealthMid:OnChanged(function(v) SensoryESPConfig.HealthBar.Gradient.Color2=v end)
+Options.SensoryHealthLow:OnChanged(function(v) SensoryESPConfig.HealthBar.Gradient.Color3=v end)
+SensoryTextBox:AddToggle("SensoryNames", {Text="名称", Default=SensoryESPConfig.Names}):AddColorPicker("SensoryTextColor", {Default=SensoryESPConfig.TextColor, Title="文字颜色"})
+Toggles.SensoryNames:OnChanged(function(v) SensoryESPConfig.Names=v end)
+Options.SensoryTextColor:OnChanged(function(v) SensoryESPConfig.TextColor=v end)
+SensoryTextBox:AddSlider("SensoryTextSize", {Text="名称字号", Min=8, Max=24, Default=SensoryESPConfig.TextSize, Rounding=0}):OnChanged(function(v) SensoryESPConfig.TextSize=v end)
+SensoryTextBox:AddToggle("SensoryTextOutline", {Text="文字描边", Default=SensoryESPConfig.TextOutline}):OnChanged(function(v) SensoryESPConfig.TextOutline=v end)
+SensoryTextBox:AddToggle("SensoryTeam", {Text="队伍标识", Default=SensoryESPConfig.TeamIndicator.Enabled}):OnChanged(function(v) SensoryESPConfig.TeamIndicator.Enabled=v end)
+SensoryTextBox:AddToggle("SensoryFriendly", {Text="友军标识", Default=SensoryESPConfig.FriendlyIndicator.Enabled}):OnChanged(function(v) SensoryESPConfig.FriendlyIndicator.Enabled=v end)
+SensoryTextBox:AddToggle("SensoryWeapon", {Text="武器名称", Default=SensoryESPConfig.Weapon.Enabled}):AddColorPicker("SensoryWeaponColor", {Default=SensoryESPConfig.Weapon.Color, Title="武器文字颜色"})
+Toggles.SensoryWeapon:OnChanged(function(v) SensoryESPConfig.Weapon.Enabled=v end)
+Options.SensoryWeaponColor:OnChanged(function(v) SensoryESPConfig.Weapon.Color=v end)
+SensoryTextBox:AddSlider("SensoryWeaponSize", {Text="武器字号", Min=8, Max=24, Default=SensoryESPConfig.Weapon.TextSize, Rounding=0}):OnChanged(function(v) SensoryESPConfig.Weapon.TextSize=v end)
+SensoryTextBox:AddToggle("SensoryDistance", {Text="距离", Default=SensoryESPConfig.Distance.Enabled}):AddColorPicker("SensoryDistanceColor", {Default=SensoryESPConfig.Distance.Color, Title="距离颜色"})
+Toggles.SensoryDistance:OnChanged(function(v) SensoryESPConfig.Distance.Enabled=v end)
+Options.SensoryDistanceColor:OnChanged(function(v) SensoryESPConfig.Distance.Color=v end)
+SensoryTextBox:AddDropdown("SensoryDistanceUnit", {Text="距离单位", Default=SensoryESPConfig.Distance.Unit, Values={"Meters","Studs"}}):OnChanged(function(v) SensoryESPConfig.Distance.Unit=v; SensoryESPConfig.Distance.Ending=v=="Meters" and "m" or " studs" end)
+
+-- 新的 GUI 骨骼（替换原来的 SensorySkeleton）
+SensoryExtraBox:AddToggle("BoneEspToggle", {Text="GUI骨骼", Default=false}):AddColorPicker("BoneEspColor", {Default=Color3.fromRGB(0,255,0), Title="骨骼颜色"})
+SensoryExtraBox:AddSlider("BoneEspThickness", {Text="骨骼粗细", Min=1, Max=10, Default=2, Rounding=0})
+Toggles.BoneEspToggle:OnChanged(function(v) getgenv().BoneESPEnabled = v end)
+Options.BoneEspColor:OnChanged(function(v) getgenv().BoneESPColor = v end)
+Options.BoneEspThickness:OnChanged(function(v) getgenv().BoneESPThickness = v end)
+
+SensoryExtraBox:AddToggle("SensoryArrows", {Text="离屏箭头", Default=SensoryESPConfig.OffScreenArrows.Enabled}):AddColorPicker("SensoryArrowColor", {Default=SensoryESPConfig.OffScreenArrows.Color, Title="箭头颜色"})
+Toggles.SensoryArrows:OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Enabled=v end)
+Options.SensoryArrowColor:OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Color=v end)
+SensoryExtraBox:AddDropdown("SensoryArrowMode", {Text="箭头模式", Default=SensoryESPConfig.OffScreenArrows.ArrowMode, Values={"Compass","Camera"}}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.ArrowMode=v end)
+SensoryExtraBox:AddSlider("SensoryArrowSize", {Text="箭头大小", Min=6, Max=40, Default=SensoryESPConfig.OffScreenArrows.Size, Rounding=0}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Size=v end)
+SensoryExtraBox:AddSlider("SensoryArrowRadius", {Text="箭头半径", Min=40, Max=500, Default=SensoryESPConfig.OffScreenArrows.OrbitRadius, Rounding=0}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.OrbitRadius=v end)
+SensoryExtraBox:AddToggle("SensoryArrowOutline", {Text="箭头描边", Default=SensoryESPConfig.OffScreenArrows.Outline}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Outline=v end)
+SensoryExtraBox:AddToggle("SensoryArrowNames", {Text="离屏名称", Default=SensoryESPConfig.OffScreenArrows.Names.Enabled}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Names.Enabled=v end)
+SensoryExtraBox:AddToggle("SensoryArrowDistance", {Text="离屏距离", Default=SensoryESPConfig.OffScreenArrows.Distance.Enabled}):OnChanged(function(v) SensoryESPConfig.OffScreenArrows.Distance.Enabled=v end)
+
+SensoryChamsBox:AddToggle("SensoryFlags", {Text="状态 Flags", Default=SensoryESPConfig.Flags.Enabled}):OnChanged(function(v) SensoryESPConfig.Flags.Enabled=v end)
+SensoryChamsBox:AddToggle("SensoryFlagIdle", {Text="Idle", Default=SensoryESPConfig.Flags.Options.Idle}):OnChanged(function(v) SensoryESPConfig.Flags.Options.Idle=v end)
+SensoryChamsBox:AddToggle("SensoryFlagMoving", {Text="Moving", Default=SensoryESPConfig.Flags.Options.Moving}):OnChanged(function(v) SensoryESPConfig.Flags.Options.Moving=v end)
+SensoryChamsBox:AddToggle("SensoryFlagJumping", {Text="Jumping", Default=SensoryESPConfig.Flags.Options.Jumping}):OnChanged(function(v) SensoryESPConfig.Flags.Options.Jumping=v end)
+SensoryChamsBox:AddToggle("SensoryFlagSwimming", {Text="Swimming", Default=SensoryESPConfig.Flags.Options.Swimming}):OnChanged(function(v) SensoryESPConfig.Flags.Options.Swimming=v end)
+SensoryChamsBox:AddToggle("SensoryChams", {Text="Chams", Default=SensoryESPConfig.Chams.Enabled}):OnChanged(function(v) SensoryESPConfig.Chams.Enabled=v end)
+SensoryChamsBox:AddDropdown("SensoryChamsType", {Text="Chams 类型", Default=SensoryESPConfig.Chams.Type, Values={"Highlight","Adornment","MeshChams"}}):OnChanged(function(v) SensoryESPConfig.Chams.Type=v end)
+SensoryChamsBox:AddLabel("Highlight 颜色"):AddColorPicker("SensoryHighlightFill", {Default=SensoryESPConfig.Chams.Highlight.FillColor, Title="Highlight 填充"}):AddColorPicker("SensoryHighlightOutline", {Default=SensoryESPConfig.Chams.Highlight.OutlineColor, Title="Highlight 描边"})
+Options.SensoryHighlightFill:OnChanged(function(v) SensoryESPConfig.Chams.Highlight.FillColor=v; SensoryESPConfig.Chams.MeshChams.FillColor=v end)
+Options.SensoryHighlightOutline:OnChanged(function(v) SensoryESPConfig.Chams.Highlight.OutlineColor=v; SensoryESPConfig.Chams.MeshChams.OutlineColor=v end)
+SensoryChamsBox:AddLabel("Adornment 颜色"):AddColorPicker("SensoryAdornmentColor", {Default=SensoryESPConfig.Chams.Adornment.Color, Title="遮挡颜色"}):AddColorPicker("SensoryAdornmentVisible", {Default=SensoryESPConfig.Chams.Adornment.VisibleColor, Title="可见颜色"})
+Options.SensoryAdornmentColor:OnChanged(function(v) SensoryESPConfig.Chams.Adornment.Color=v end)
+Options.SensoryAdornmentVisible:OnChanged(function(v) SensoryESPConfig.Chams.Adornment.VisibleColor=v end)
+SensoryChamsBox:AddToggle("SensoryChamsVisible", {Text="可见性检测", Default=SensoryESPConfig.Chams.Highlight.VisibleCheck}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.VisibleCheck=v; SensoryESPConfig.Chams.Adornment.VisibleCheck=v; SensoryESPConfig.Chams.MeshChams.VisibleCheck=v end)
+SensoryChamsBox:AddSlider("SensoryChamsFillTransparency", {Text="Chams 填充透明度", Min=0, Max=1, Default=SensoryESPConfig.Chams.Highlight.FillTransparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.FillTransparency=v; SensoryESPConfig.Chams.MeshChams.FillTransparency=v; SensoryESPConfig.Chams.Adornment.Transparency=v end)
+SensoryChamsBox:AddSlider("SensoryChamsOutlineTransparency", {Text="Chams 描边透明度", Min=0, Max=1, Default=SensoryESPConfig.Chams.Highlight.OutlineTransparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.OutlineTransparency=v; SensoryESPConfig.Chams.MeshChams.OutlineTransparency=v end)
+SensoryChamsBox:AddToggle("SensoryChamsAlwaysTop", {Text="始终置顶", Default=SensoryESPConfig.Chams.Adornment.AlwaysOnTop}):OnChanged(function(v) SensoryESPConfig.Chams.Adornment.AlwaysOnTop=v end)
+
+-- ===== 独立 GUI 骨骼绘制模块（优化版 + 队伍检查联动） =====
+do
+    local BoneGui = Instance.new("ScreenGui")
+    BoneGui.Name = "BoneGui"
+    BoneGui.ResetOnSpawn = false
+    BoneGui.IgnoreGuiInset = true
+    BoneGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    BoneGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    getgenv().BoneESPEnabled = false
+    getgenv().BoneESPColor = Color3.fromRGB(0, 255, 0)
+    getgenv().BoneESPThickness = 2
+
+    local BONE_PAIRS_R15 = {
+        {"Head", "UpperTorso"},
+        {"UpperTorso", "LowerTorso"},
+        {"LowerTorso", "LeftUpperLeg"},
+        {"LowerTorso", "RightUpperLeg"},
+        {"LeftUpperLeg", "LeftLowerLeg"},
+        {"LeftLowerLeg", "LeftFoot"},
+        {"RightUpperLeg", "RightLowerLeg"},
+        {"RightLowerLeg", "RightFoot"},
+        {"UpperTorso", "LeftUpperArm"},
+        {"LeftUpperArm", "LeftLowerArm"},
+        {"LeftLowerArm", "LeftHand"},
+        {"UpperTorso", "RightUpperArm"},
+        {"RightUpperArm", "RightLowerArm"},
+        {"RightLowerArm", "RightHand"},
+    }
+
+    local BONE_PAIRS_R6 = {
+        {"Head", "Torso"},
+        {"Torso", "Left Arm"},
+        {"Torso", "Right Arm"},
+        {"Torso", "Left Leg"},
+        {"Torso", "Right Leg"},
+        {"Left Arm", "LeftHand"},
+        {"Right Arm", "RightHand"},
+        {"Left Leg", "LeftFoot"},
+        {"Right Leg", "RightFoot"},
+    }
+
+    local function getBonePairs(character)
+        if character:FindFirstChild("UpperTorso") or character:FindFirstChild("LowerTorso") then
+            return BONE_PAIRS_R15
+        elseif character:FindFirstChild("Torso") then
+            return BONE_PAIRS_R6
+        end
+        return BONE_PAIRS_R15
+    end
+
+    local function getPart(character, name)
+        local found = character:FindFirstChild(name)
+        if found and found:IsA("BasePart") then return found end
+
+        local aliases = {
+            ["UpperTorso"] = {"Torso"},
+            ["LowerTorso"] = {"Torso"},
+            ["LeftUpperArm"] = {"Left Arm"},
+            ["RightUpperArm"] = {"Right Arm"},
+            ["LeftLowerArm"] = {"LeftArm"},
+            ["RightLowerArm"] = {"RightArm"},
+            ["LeftHand"] = {"Left Arm"},
+            ["RightHand"] = {"Right Arm"},
+            ["LeftUpperLeg"] = {"Left Leg"},
+            ["RightUpperLeg"] = {"Right Leg"},
+            ["LeftLowerLeg"] = {"LeftLeg"},
+            ["RightLowerLeg"] = {"RightLeg"},
+            ["LeftFoot"] = {"Left Leg"},
+            ["RightFoot"] = {"Right Leg"},
+        }
+        if aliases[name] then
+            for _, alias in ipairs(aliases[name]) do
+                local part = character:FindFirstChild(alias)
+                if part and part:IsA("BasePart") then return part end
+            end
+        end
+
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local success, bodyPart = pcall(function()
+                local mapping = {
+                    Head = Enum.BodyPartR15.Head,
+                    UpperTorso = Enum.BodyPartR15.UpperTorso,
+                    LowerTorso = Enum.BodyPartR15.LowerTorso,
+                    LeftUpperArm = Enum.BodyPartR15.LeftUpperArm,
+                    LeftLowerArm = Enum.BodyPartR15.LeftLowerArm,
+                    LeftHand = Enum.BodyPartR15.LeftHand,
+                    RightUpperArm = Enum.BodyPartR15.RightUpperArm,
+                    RightLowerArm = Enum.BodyPartR15.RightLowerArm,
+                    RightHand = Enum.BodyPartR15.RightHand,
+                    LeftUpperLeg = Enum.BodyPartR15.LeftUpperLeg,
+                    LeftLowerLeg = Enum.BodyPartR15.LeftLowerLeg,
+                    LeftFoot = Enum.BodyPartR15.LeftFoot,
+                    RightUpperLeg = Enum.BodyPartR15.RightUpperLeg,
+                    RightLowerLeg = Enum.BodyPartR15.RightLowerLeg,
+                    RightFoot = Enum.BodyPartR15.RightFoot,
+                }
+                return mapping[name] and humanoid:GetBodyPartR15(mapping[name]) or nil
+            end)
+            if success and bodyPart then
+                local actualPart = character:FindFirstChild(bodyPart.Name) or bodyPart
+                if actualPart and actualPart:IsA("BasePart") then return actualPart end
+            end
+        end
+        return nil
+    end
+
+    local drawnCharacters = {}
+
+    local function createLineFrame(parent, color, thickness)
+        local frame = Instance.new("Frame")
+        frame.AnchorPoint = Vector2.new(0.5, 0.5)
+        frame.BackgroundColor3 = color
+        frame.BorderSizePixel = 0
+        frame.Size = UDim2.fromOffset(0, thickness)
+        frame.Visible = false
+        frame.ZIndex = 50
+        frame.Parent = parent
+        return frame
+    end
+
+    local function cleanCharacter(character)
+        local data = drawnCharacters[character]
+        if data then
+            for _, bone in pairs(data.bones) do
+                if bone then bone:Destroy() end
+            end
+            drawnCharacters[character] = nil
+        end
+    end
+
+    local function cleanAll()
+        for character, _ in pairs(drawnCharacters) do
+            cleanCharacter(character)
+        end
+    end
+
+    local function updateCharacterBones(character)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then
+            cleanCharacter(character)
+            return
+        end
+
+        local pairs = getBonePairs(character)
+        local data = drawnCharacters[character]
+        if not data then
+            data = { bones = {}, pairs = pairs }
+            drawnCharacters[character] = data
+            for i = 1, #pairs do
+                data.bones[i] = createLineFrame(BoneGui, getgenv().BoneESPColor, getgenv().BoneESPThickness)
+            end
+        end
+
+        for i, pair in ipairs(pairs) do
+            local bone = data.bones[i]
+            if bone then
+                local partA = getPart(character, pair[1])
+                local partB = getPart(character, pair[2])
+                if partA and partB then
+                    local posA, onScreenA = Camera:WorldToViewportPoint(partA.Position)
+                    local posB, onScreenB = Camera:WorldToViewportPoint(partB.Position)
+                    if onScreenA and onScreenB then
+                        local vA = Vector2.new(posA.X, posA.Y)
+                        local vB = Vector2.new(posB.X, posB.Y)
+                        local diff = vB - vA
+                        local length = diff.Magnitude
+                        local mid = (vA + vB) / 2
+                        local angle = math.deg(math.atan2(diff.Y, diff.X))
+
+                        bone.Size = UDim2.fromOffset(length, getgenv().BoneESPThickness)
+                        bone.Position = UDim2.fromOffset(mid.X, mid.Y)
+                        bone.Rotation = angle
+                        bone.BackgroundColor3 = getgenv().BoneESPColor
+                        bone.Visible = true
+                    else
+                        bone.Visible = false
+                    end
+                else
+                    bone.Visible = false
+                end
+            end
+        end
+    end
+
+    local UPDATE_INTERVAL = 1 / 30
+    local lastUpdateTime = 0
+
+    local renderConnection
+    renderConnection = RunService.RenderStepped:Connect(function()
+        local now = tick()
+        if now - lastUpdateTime < UPDATE_INTERVAL then
+            return
+        end
+        lastUpdateTime = now
+
+        if not getgenv().BoneESPEnabled then
+            for _, data in pairs(drawnCharacters) do
+                for _, bone in pairs(data.bones) do
+                    if bone then bone.Visible = false end
+                end
+            end
+            return
+        end
+
+        -- 读取 ESP 队伍检查设置
+        local teamCheck = SensoryESPConfig and SensoryESPConfig.TeamCheck or false
+
+        local validCharacters = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local character = player.Character
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    -- 队伍检查：如果开启且是队友，则跳过绘制
+                    if not (teamCheck and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team) then
+                        validCharacters[character] = true
+                        updateCharacterBones(character)
+                    end
+                end
+            end
+        end
+
+        -- 清理无效或被过滤的角色
+        for character, _ in pairs(drawnCharacters) do
+            if not validCharacters[character] then
+                cleanCharacter(character)
+            end
+        end
+    end)
+
+    getgenv().CleanBoneESP = function()
+        if renderConnection then renderConnection:Disconnect() end
+        cleanAll()
+        if BoneGui then BoneGui:Destroy() end
+    end
+end
+
+-- ===== 杂项功能连接 (AA, Desync, Bhop, Radar 渲染) =====
+local function GetFreestandYaw()
+    local char = LocalPlayer.Character
+    if not char or not char.PrimaryPart then return 0 end
+    local Origin = char.PrimaryPart.Position
+    local RayParams = RaycastParams.new()
+    RayParams.FilterDescendantsInstances = { char, Camera }
+    RayParams.FilterType = Enum.RaycastFilterType.Exclude
+    local Directions = { Vector3.new(-1,0,0), Vector3.new(0,0,1), Vector3.new(1,0,0), Vector3.new(0,0,-1) }
+    local Yaws = { -90, 0, 90, 180 }
+    local BestDirection = 0; local MaxDist = -math.huge
+    for i = 1, #Directions do
+        local Result = workspace:Raycast(Origin, Directions[i] * 100, RayParams)
+        local Dist = Result and (Result.Position - Origin).Magnitude or 100
+        if Dist > MaxDist then MaxDist = Dist; BestDirection = Yaws[i] end
+    end
+    return BestDirection
+end
+
+local AARenderConnection = RunService.RenderStepped:Connect(function(DeltaTime)
+    if not SilentAimSettings.AA_Enabled then return end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+        local RootPart = char.PrimaryPart
+        if not RootPart then return end
+        local JitterAmount = SilentAimSettings.AA_Jitter
+        local Method = SilentAimSettings.AA_Yaw
+        local Roll = SilentAimSettings.AA_UpsideDown and math.rad(180) or 0
+        if Method == "Spin" then
+            aaRotation = aaRotation + JitterAmount
+            RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.rad(aaRotation), Roll)
+        elseif Method == "Jitter" then
+            local Delta = JitterAmount
+            if math.random() < 0.5 then Delta = -Delta end
+            aaRotation = aaRotation + Delta
+            RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.rad(aaRotation), Roll)
+        elseif Method == "Backward" then
+            RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.pi, Roll)
+        elseif Method == "Freestanding" then
+            RootPart.CFrame = CFrame.new(RootPart.Position) * CFrame.Angles(0, math.rad(GetFreestandYaw()), Roll)
+        end
+    end
+end)
+
+local DesyncRenderConnection = RunService.RenderStepped:Connect(function()
+    if not SilentAimSettings.Desync_Enabled then 
+        local fakeChar = workspace:FindFirstChild("FakeChar"); if fakeChar then fakeChar:Destroy() end
+        local existingSeat = workspace:FindFirstChild("tRGWJUI%ERjtguihe85ur"); if existingSeat then existingSeat:Destroy() end
+        return 
+    end
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+        task.spawn(function()
+            if char:FindFirstChild("HumanoidRootPart") and not workspace:FindFirstChild("tRGWJUI%ERjtguihe85ur") then
+                local cee = Instance.new("Seat"); cee.Name = "tRGWJUI%ERjtguihe85ur"; cee.Parent = workspace
+                cee.Size = Vector3.new(4,1,1); cee.CanCollide = false; cee.CanQuery = false; cee.Transparency = 1
+                local awe = Instance.new("Weld", cee)
+                local bb = Instance.new("Weld"); bb.Name = "geriuzh5eruzhge5"; bb.Parent = char.HumanoidRootPart
+                cee.CFrame = CFrame.new(char.HumanoidRootPart.Position)
+                awe.Part0 = char.HumanoidRootPart; awe.Part1 = cee
+                char.HumanoidRootPart.CFrame = CFrame.new(cee.Position)
+                bb.Part0 = char.HumanoidRootPart; bb.Part1 = cee
+                if SilentAimSettings.Desync_Visualize then
+                    if not workspace:FindFirstChild("FakeChar") then
+                        local i = Instance.new("Model", workspace); i.Name = "FakeChar"
+                        for _, v in ipairs(char:GetDescendants()) do
+                            if v:IsA("BasePart") and v.Transparency ~= 1 and not v.Parent:IsA("Accessory") then
+                                local a = v:Clone(); a.CanCollide = false; a.Parent = i
+                                v.CanQuery = false; a.Anchored = true
+                                a.Color = SilentAimSettings.Desync_Color; a.Material = Enum.Material.ForceField
+                                a.Transparency = 0.6; a.Reflectance = 0; a.CollisionGroup = "Default"
+                                if a:IsA("MeshPart") then a.TextureID = "" end
+                                for _, c in ipairs(a:GetChildren()) do
+                                    if not c:IsA("SpecialMesh") then c:Destroy() else c.TextureId = "" end
+                                end
+                            end
+                        end
+                    end
+                end
+                task.delay(SilentAimSettings.Desync_Ticks / 10000, function()
+                    if cee and cee.Parent then cee:Destroy() end
+                    local fakeChar = workspace:FindFirstChild("FakeChar"); if fakeChar then fakeChar:Destroy() end
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local existing = char.HumanoidRootPart:FindFirstChild("geriuzh5eruzhge5")
+                        if existing then existing:Destroy() end
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+local BhopConnection = RunService.RenderStepped:Connect(function(dt)
+    if not SilentAimSettings.AutoBhopEnabled then return end
+    local char = LocalPlayer.Character; if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if humanoid and humanoid.Health > 0 then
+        if humanoid.FloorMaterial ~= Enum.Material.Air then
+            humanoid.Jump = true
+        else
+            if hrp and SilentAimSettings.BhopBoostAmount > 0 and humanoid.MoveDirection.Magnitude > 0 then
+                hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (SilentAimSettings.BhopBoostAmount * dt))
+            end
+        end
+    end
+end)
+
+-- ===== 初始化 =====
+FOVCircleGui.Enabled = Toggles.FOVVisibleToggle.Value
+FOVStroke.Color = Options.FOVColorPicker.Value
+FOVCircleFrame.Size = UDim2.fromOffset(Options.FOVRadiusSlider.Value * 2, Options.FOVRadiusSlider.Value * 2)
+IndependentPanelFrame.Draggable = not SilentAimSettings.IndependentPanelPinned
+
+local posBhop = SilentAimSettings.MobileBhopButtonPosition:split(",")
+local bx = tonumber(posBhop[1]) or (Camera.ViewportSize.X / 2 + 80)
+local by = tonumber(posBhop[2]) or (Camera.ViewportSize.Y / 2)
+MobileBhopButton.Position = UDim2.fromOffset(bx, by)
+
+local posAimlock = SilentAimSettings.MobileAimlockButtonPosition:split(",")
+local ax = tonumber(posAimlock[1]) or (Camera.ViewportSize.X / 2 - 80)
+local ay = tonumber(posAimlock[2]) or (Camera.ViewportSize.Y / 2)
+MobileAimlockButton.Position = UDim2.fromOffset(ax, ay)
+
+task.spawn(function()
+    while task.wait(2) do
+        if SilentAimSettings.TargetMode == "NPC" or SilentAimSettings.TargetMode == "所有" then updateNPCs() end
+    end
+end)
+
+local lastHealthValues = {}
+local damageIndicators = {}
+local DAMAGE_INDICATOR_FADE_TIME = 1
+
+local pos = SilentAimSettings.IndependentPanelPosition:split(",")
+IndependentPanelFrame.Position = UDim2.fromOffset(tonumber(pos[1]), tonumber(pos[2]))
+
+local posTrigger = SilentAimSettings.MobileTriggerButtonPosition:split(",")
+local sX = tonumber(posTrigger[1]) or (Camera.ViewportSize.X / 2)
+local sY = tonumber(posTrigger[2]) or (Camera.ViewportSize.Y / 2)
+MobileTriggerButton.Position = UDim2.fromOffset(sX, sY)
+
+local lastTargetCharacter = nil
+local lockedRandomPart = nil
+
+-- ===== 主循环 (RenderStepped) =====
+resume(create(function()
+    RenderStepped:Connect(function()
+        if SilentAimSettings.IndicatorRotationEnabled then currentRotationAngle = (currentRotationAngle + (SilentAimSettings.IndicatorRotationSpeed / 50)) % (math.pi * 2) end
+        if SilentAimSettings.IndicatorRainbowEnabled or SilentAimSettings.HighlightRainbowEnabled or (Toggles.TransparentCharacterRainbow and Toggles.TransparentCharacterRainbow.Value) then currentIndicatorHue = (currentIndicatorHue + (SilentAimSettings.IndicatorRainbowSpeed / 200)) % 1 end
+        
+        local currentTime = tick()
+        for i = #recentShots, 1, -1 do
+            if currentTime - recentShots[i].time > 1 then table.remove(recentShots, i) end
+        end
+
+        local isEnabled = Toggles.EnabledToggle.Value
+        local aimlockActive = Toggles.AimlockToggle.Value or isAimlockActiveByButton
+        local isTargeting = isEnabled or aimlockActive or Toggles.TriggerbotToggle.Value
+        currentTargetPart = nil
+        local currentTargetCharacter = nil
+
+        -- 目标选择
+        if isTargeting then
+            if lockedTargetObject then
+                if lockedTargetObject.Parent and not isBlacklisted(lockedTargetObject.Name) then
+                    if lockedTargetObject:IsA("Player") then
+                        currentTargetCharacter = lockedTargetObject.Character
+                    elseif lockedTargetObject:IsA("Model") then
+                        currentTargetCharacter = lockedTargetObject
+                    end
+                else
+                    lockedTargetObject = nil; Options.TargetSelectorDropdown:SetValue("无")
+                end
+            else
+                local overrideTarget = nil
+                if aimlockActive and SilentAimSettings.LockOnAimed then
+                    overrideTarget = getTargetAimingAtUs()
+                end
+                if overrideTarget then
+                    currentTargetCharacter = overrideTarget
+                else
+                    local targetMode = SilentAimSettings.TargetMode
+                    local playerTarget, npcTarget
+                    if targetMode == "玩家" or targetMode == "所有" then playerTarget = getClosestPlayer() end
+                    if targetMode == "NPC" or targetMode == "所有" then npcTarget = getNPCTarget() end
+                    if playerTarget and npcTarget then
+                        local priority = SilentAimSettings.PriorityMode
+                        if priority == "最低血量" then
+                            local pHumanoid = playerTarget:FindFirstChildOfClass("Humanoid")
+                            local nHumanoid = npcTarget:FindFirstChildOfClass("Humanoid")
+                            currentTargetCharacter = (pHumanoid and nHumanoid and pHumanoid.Health <= nHumanoid.Health) and playerTarget or npcTarget
+                        else
+                            local pDist = (LocalPlayer.Character.HumanoidRootPart.Position - playerTarget.HumanoidRootPart.Position).Magnitude
+                            local nDist = (LocalPlayer.Character.HumanoidRootPart.Position - npcTarget.HumanoidRootPart.Position).Magnitude
+                            currentTargetCharacter = pDist < nDist and playerTarget or npcTarget
+                        end
+                    else
+                        currentTargetCharacter = playerTarget or npcTarget
+                    end
+                end
+            end
+        end
+
+        if currentTargetCharacter ~= lastTargetCharacter then lockedRandomPart = nil end
+        lastTargetCharacter = currentTargetCharacter
+
+        if currentTargetCharacter then
+            local humanoid = currentTargetCharacter:FindFirstChildOfClass("Humanoid")
+            if not humanoid or humanoid.Health <= 0 then
+                if lockedTargetObject and lockedTargetObject:IsA("Model") and lockedTargetObject == currentTargetCharacter then
+                    lockedTargetObject = nil; Options.TargetSelectorDropdown:SetValue("无")
+                end
+                currentTargetCharacter = nil; currentTargetPart = nil
+            else
+                local baseTargetPart = nil
+                if SilentAimSettings.LeakAndHitMode then
+                    for _, part in ipairs(currentTargetCharacter:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Parent == currentTargetCharacter then
+                            if isPartVisible(part) then baseTargetPart = part; break end
+                        end
+                    end
+                else
+                    local targetPartName = SilentAimSettings.TargetPart
+                    if targetPartName == "Random" then
+                        if not lockedRandomPart or not lockedRandomPart.Parent or lockedRandomPart.Parent ~= currentTargetCharacter then
+                            lockedRandomPart = currentTargetCharacter[ValidTargetParts[math.random(1, #ValidTargetParts)]]
+                        end
+                        baseTargetPart = lockedRandomPart
+                    else
+                        baseTargetPart = currentTargetCharacter:FindFirstChild(targetPartName) or currentTargetCharacter:FindFirstChild("HumanoidRootPart")
+                    end
+                end
+                if baseTargetPart then
+                    if SilentAimSettings.HeadshotChanceEnabled and CalculateChance(SilentAimSettings.HeadshotChance) then
+                        local headPart = currentTargetCharacter:FindFirstChild("Head")
+                        currentTargetPart = headPart or baseTargetPart
+                    else
+                        currentTargetPart = baseTargetPart
+                    end
+                else
+                    currentTargetPart = nil
+                end
+            end
+        end
+
+        -- 高亮（修复：确保开关关闭时销毁）
+        if currentHighlight and (not currentTargetCharacter or not SilentAimSettings.HighlightEnabled or not isEnabled) then
+            currentHighlight:Destroy()
+            currentHighlight = nil
+        end
+        if isEnabled and currentTargetCharacter and SilentAimSettings.HighlightEnabled then
+            if not currentHighlight then
+                currentHighlight = Instance.new("Highlight")
+                currentHighlight.Parent = currentTargetCharacter
+            end
+            currentHighlight.Adornee = currentTargetCharacter
+            currentHighlight.Enabled = true
+            currentHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            if SilentAimSettings.HighlightRainbowEnabled then
+                local rc = Color3.fromHSV(currentIndicatorHue,1,1)
+                currentHighlight.FillColor = rc; currentHighlight.OutlineColor = rc
+                currentHighlight.FillTransparency = 0.5; currentHighlight.OutlineTransparency = 0
+            else
+                currentHighlight.FillColor = SilentAimSettings.HighlightColor
+                currentHighlight.OutlineColor = SilentAimSettings.HighlightColor
+                currentHighlight.FillTransparency = 0.5; currentHighlight.OutlineTransparency = 0
+            end
+        end
+
+        -- 追踪线更新（修复偏移 + 位置选择）
+        if SilentAimSettings.ShowTracer and currentTargetPart then
+            local targetWorldPos = currentTargetPart.Position + Vector3.new(0, SilentAimSettings.Tracer_Y_Offset, 0)
+            local targetScreenPos, onScreen = getPositionOnScreen(targetWorldPos)
+            if onScreen then
+                local startPos
+                if Options.TracerPositionDropdown.Value == "中间" then
+                    startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                else
+                    startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                end
+                local endPos = targetScreenPos
+                local diff = endPos - startPos
+                local length = diff.Magnitude
+                local mid = (startPos + endPos) / 2
+                local angle = math.deg(math.atan2(diff.Y, diff.X))
+                TracerLine.Size = UDim2.fromOffset(length, 2)
+                TracerLine.Position = UDim2.fromOffset(mid.X, mid.Y)
+                TracerLine.Rotation = angle
+                TracerLine.Visible = true
+            else
+                TracerLine.Visible = false
+            end
+        else
+            TracerLine.Visible = false
+        end
+
+        -- 目标指示器更新
+        if SilentAimSettings.ShowSilentAimTarget and currentTargetPart then
+            local screenPos, onScreen = getPositionOnScreen(currentTargetPart.Position)
+            if onScreen then
+                TargetIndicatorFrame.Position = UDim2.fromOffset(screenPos.X, screenPos.Y)
+                TargetIndicatorFrame.Size = UDim2.fromOffset(SilentAimSettings.TargetIndicatorRadius * 2, SilentAimSettings.TargetIndicatorRadius * 2)
+                TargetIndicatorFrame.Visible = true
+            else
+                TargetIndicatorFrame.Visible = false
+            end
+        else
+            TargetIndicatorFrame.Visible = false
+        end
+
+        -- 面板信息更新
+        if SilentAimSettings.TargetInfoStyle == "面板" and currentTargetCharacter then
+            local head = currentTargetCharacter:FindFirstChild("Head")
+            if head then
+                local screenPos, onScreen = getPositionOnScreen(head.Position + Vector3.new(0, 2, 0))
+                if onScreen then
+                    PanelInfoBg.Position = UDim2.fromOffset(screenPos.X, screenPos.Y - 40)
+                    PanelInfoBg.Visible = true
+
+                    if SilentAimSettings.ShowTargetName then
+                        PanelInfoTexts["Name"].Text = "名字: " .. currentTargetCharacter.Name
+                        PanelInfoTexts["Name"].Visible = true
+                    else
+                        PanelInfoTexts["Name"].Visible = false
+                    end
+                    if SilentAimSettings.ShowTargetHealth then
+                        local humanoid = currentTargetCharacter:FindFirstChildOfClass("Humanoid")
+                        local health = humanoid and math.floor(humanoid.Health) or 0
+                        PanelInfoTexts["Health"].Text = "血量: " .. health
+                        PanelInfoTexts["Health"].Visible = true
+                    else
+                        PanelInfoTexts["Health"].Visible = false
+                    end
+                    if SilentAimSettings.ShowTargetDistance then
+                        local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        local targetRoot = currentTargetCharacter:FindFirstChild("HumanoidRootPart")
+                        local dist = localRoot and targetRoot and math.floor((localRoot.Position - targetRoot.Position).Magnitude) or 0
+                        PanelInfoTexts["Distance"].Text = "距离: " .. dist
+                        PanelInfoTexts["Distance"].Visible = true
+                    else
+                        PanelInfoTexts["Distance"].Visible = false
+                    end
+                    if SilentAimSettings.ShowTargetCategory then
+                        PanelInfoTexts["Category"].Text = "类别: " .. getTargetCategory(currentTargetCharacter)
+                        PanelInfoTexts["Category"].Visible = true
+                    else
+                        PanelInfoTexts["Category"].Visible = false
+                    end
+
+                    local visibleCount = 0
+                    for _, v in pairs(PanelInfoTexts) do if v.Visible then visibleCount = visibleCount + 1 end end
+                    PanelInfoBg.Size = UDim2.new(0, 120, 0, visibleCount * 15 + 5)
+                    local yOffset = 0
+                    for _, name in ipairs({"Name", "Health", "Distance", "Category"}) do
+                        if PanelInfoTexts[name].Visible then
+                            PanelInfoTexts[name].Position = UDim2.new(0, 5, 0, yOffset)
+                            yOffset = yOffset + 15
+                        end
+                    end
+                else
+                    PanelInfoBg.Visible = false
+                end
+            else
+                PanelInfoBg.Visible = false
+            end
+        else
+            PanelInfoBg.Visible = false
+        end
+
+        -- 自动扳机触发
+        if Toggles.TriggerbotToggle and Toggles.TriggerbotToggle.Value and currentTargetPart then
+            if tick() - lastTriggerTime >= (1 / SilentAimSettings.TriggerbotCPS) then
+                lastTriggerTime = tick()
+                task.spawn(function()
+                    local VIM = game:GetService("VirtualInputManager")
+                    local btnX = math.floor(MobileTriggerButton.AbsolutePosition.X + (MobileTriggerButton.AbsoluteSize.X / 2)) + SilentAimSettings.TriggerbotOffsetX
+                    local btnY = math.floor(MobileTriggerButton.AbsolutePosition.Y + (MobileTriggerButton.AbsoluteSize.Y / 2)) + SilentAimSettings.TriggerbotOffsetY
+                    local oldVis = MobileTriggerButton.Visible
+                    if oldVis then MobileTriggerButton.Visible = false end
+                    if UserInputService.TouchEnabled then
+                        VIM:SendTouchEvent(10, 0, btnX, btnY); task.wait(0.01); VIM:SendTouchEvent(10, 2, btnX, btnY)
+                    else
+                        VIM:SendMouseButtonEvent(btnX, btnY, 0, true, game, 1); task.wait(0.01); VIM:SendMouseButtonEvent(btnX, btnY, 0, false, game, 1)
+                    end
+                    if oldVis then MobileTriggerButton.Visible = true end
+                end)
+            end
+        end
+
+        -- 自瞄 (Aimlock) 逻辑
+        if aimlockActive and currentTargetPart then
+            local targetPos = currentTargetPart.Position
+            if SilentAimSettings.MouseHitPrediction then
+                targetPos = targetPos + (currentTargetPart.Velocity * SilentAimSettings.MouseHitPredictionAmount)
+            end
+            local smoothness = SilentAimSettings.AimlockSmoothness
+            if SilentAimSettings.AimlockSnapCamera then
+                local cameraCFrame = Camera.CFrame
+                local targetLookCFrame = CFrame.lookAt(cameraCFrame.Position, targetPos)
+                if smoothness < 1 then
+                    Camera.CFrame = cameraCFrame:Lerp(targetLookCFrame, smoothness)
+                else
+                    Camera.CFrame = targetLookCFrame
+                end
+            else
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local targetCFrame = CFrame.lookAt(hrp.Position, Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z))
+                    if smoothness < 1 then
+                        hrp.CFrame = hrp.CFrame:Lerp(targetCFrame, smoothness)
+                    else
+                        hrp.CFrame = targetCFrame
+                    end
+                end
+            end
+        end
+
+        -- V5.0 自瞄
+        if SilentAimSettings.AimMethod == "V5.0 自瞄" and isEnabled and currentTargetPart then
+            local aimChar = currentTargetPart.Parent
+            if aimChar and aimChar:FindFirstChild("Head") then
+                local aimHead = aimChar.Head
+                local primaryPart = aimChar.PrimaryPart or aimChar:FindFirstChild("HumanoidRootPart")
+                local velocity = primaryPart and primaryPart.AssemblyLinearVelocity or Vector3.zero
+                local predictedPos = aimHead.Position + (velocity * SilentAimSettings.AimbotPredictionFactor)
+                local alpha = math.clamp(SilentAimSettings.AimbotAimSpeed * 0.1, 0, 1)
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, predictedPos), alpha)
+            end
+        end
+
+        -- 雷达渲染
+        if SilentAimSettings.RadarEnabled and RadarBG and RadarBG.Visible then
+            local myChar = LocalPlayer.Character; local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            if myRoot then
+                local myPos = myRoot.Position
+                local camLook = Camera.CFrame.LookVector
+                local camYaw = math.atan2(-camLook.X, -camLook.Z)
+                local targets = {}
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer and p.Character then
+                        if not (SilentAimSettings.TeamCheck and p.Team == LocalPlayer.Team) then table.insert(targets, p.Character) end
+                    end
+                end
+                for _, n in ipairs(npcList) do
+                    if not SilentAimSettings.AdvancedFiltering or isWhitelisted(n) then table.insert(targets, n) end
+                end
+                local activeBlips = {}
+                for _, char in ipairs(targets) do
+                    local hum = char:FindFirstChild("Humanoid"); local root = char:FindFirstChild("HumanoidRootPart")
+                    if hum and hum.Health > 0 and root then
+                        local diff = root.Position - myPos; local dist = diff.Magnitude
+                        if dist <= SilentAimSettings.RadarRange then
+                            local relX = diff.X; local relZ = diff.Z
+                            local rotX = relX * math.cos(camYaw) - relZ * math.sin(camYaw)
+                            local rotZ = relX * math.sin(camYaw) + relZ * math.cos(camYaw)
+                            local scale = (RadarBG.AbsoluteSize.X / 2) / SilentAimSettings.RadarRange
+                            activeBlips[char] = {rotX * scale, rotZ * scale}
+                        end
+                    end
+                end
+                for char, pos2d in pairs(activeBlips) do
+                    local blip = radarBlips[char]
+                    if not blip then
+                        blip = Instance.new("Frame", RadarBG)
+                        blip.Size = UDim2.fromOffset(4,4); blip.AnchorPoint = Vector2.new(0.5,0.5)
+                        blip.BackgroundColor3 = Color3.new(1,0,0)
+                        Instance.new("UICorner", blip).CornerRadius = UDim.new(1,0)
+                        radarBlips[char] = blip
+                    end
+                    blip.Position = UDim2.new(0.5, pos2d[1], 0.5, pos2d[2])
+                    blip.Visible = true
+                end
+                for char, blip in pairs(radarBlips) do
+                    if not activeBlips[char] then blip.Visible = false end
+                end
+            end
+        end
+
+        -- FOV 圈位置
+        if Toggles.FOVVisibleToggle.Value then
+            if Toggles.FixedFOVToggle.Value then
+                FOVCircleFrame.Position = UDim2.fromScale(0.5,0.5)
+            else
+                local mousePos = GetMouseLocation(UserInputService)
+                FOVCircleFrame.Position = UDim2.fromOffset(mousePos.X, mousePos.Y)
+            end
+        end
+    end)
+end))
+
+-- ===== Hook 拦截 (namecall, index, raynew) =====
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+    local Method = getnamecallmethod()
+    local Arguments = {...}
+    local self = Arguments[1]
+    if SilentAimSettings.Enabled and not checkcaller() and CalculateChance(SilentAimSettings.HitChance) and currentTargetPart then
+        local currentMethod = SilentAimSettings.SilentAimMethod
+        local shotOrigin = nil
+        if (Method == "FindPartOnRayWithIgnoreList" and currentMethod == Method) or
+           (Method == "FindPartOnRayWithWhitelist" and currentMethod == Method) or
+           ((Method == "FindPartOnRay" or Method == "findPartOnRay") and currentMethod:lower() == Method:lower()) then
+            if ValidateArguments(Arguments, ExpectedArguments[Method] or ExpectedArguments["FindPartOnRay"]) then
+                shotOrigin = Arguments[2].Origin
+                table.insert(recentShots, {origin = shotOrigin, time = tick()})
+                if SilentAimSettings.Wallbang then
+                    return currentTargetPart, currentTargetPart.Position, currentTargetPart.CFrame.LookVector, currentTargetPart.Material
+                end
+                Arguments[2] = Ray.new(Arguments[2].Origin, getDirection(Arguments[2].Origin, currentTargetPart.Position))
+                return oldNamecall(unpack(Arguments))
+            end
+        elseif Method == "Raycast" and currentMethod == Method then
+            if ValidateArguments(Arguments, ExpectedArguments.Raycast) then
+                shotOrigin = Arguments[2]
+                table.insert(recentShots, {origin = shotOrigin, time = tick()})
+                if SilentAimSettings.Wallbang then
+                    local direction = getDirection(shotOrigin, currentTargetPart.Position)
+                    local wallbangParams = RaycastParams.new()
+                    wallbangParams.FilterType = Enum.RaycastFilterType.Include
+                    wallbangParams.FilterDescendantsInstances = {currentTargetPart.Parent}
+                    local newArgs = {self, shotOrigin, direction, wallbangParams}
+                    return oldNamecall(unpack(newArgs))
+                end
+                Arguments[3] = getDirection(Arguments[2], currentTargetPart.Position)
+                return oldNamecall(unpack(Arguments))
+            end
+        elseif (Method == "ScreenPointToRay" or Method == "ViewportPointToRay") and currentMethod == Method and self == Camera then
+            shotOrigin = Camera.CFrame.Position
+            local direction = (currentTargetPart.Position - shotOrigin).Unit
+            table.insert(recentShots, {origin = shotOrigin, time = tick()})
+            return Ray.new(shotOrigin, direction)
+        end
+    end
+    return oldNamecall(...)
+end))
+
+local oldIndex
+local oldRayNew
+oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, Index)
+    if self == Mouse and not checkcaller() and SilentAimSettings.Enabled and SilentAimSettings.SilentAimMethod == "Mouse.Hit/Target" then
+        if currentTargetPart then
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
+                table.insert(recentShots, {origin = LocalPlayer.Character.Head.Position, time = tick()})
+            end
+            if Index == "Target" or Index == "target" then
+                return currentTargetPart
+            elseif Index == "Hit" or Index == "hit" then
+                return (SilentAimSettings.MouseHitPrediction and (currentTargetPart.CFrame + (currentTargetPart.Velocity * currentTargetPart.Velocity.magnitude * SilentAimSettings.MouseHitPredictionAmount))) or currentTargetPart.CFrame
+            elseif Index == "X" or Index == "x" then
+                return self.X
+            elseif Index == "Y" or Index == "y" then
+                return self.Y
+            elseif Index == "UnitRay" then
+                return Ray.new(self.Origin, (self.Hit.p - self.Origin.p).Unit)
+            end
+        end
+    end
+    return oldIndex(self, Index)
+end))
+
+oldRayNew = hookfunction(Ray.new, newcclosure(function(origin, direction)
+    if SilentAimSettings.Enabled and SilentAimSettings.SilentAimMethod == "Ray" and currentTargetPart and not checkcaller() and CalculateChance(SilentAimSettings.HitChance) then
+        table.insert(recentShots, {origin = origin, time = tick()})
+        local newDirectionVector = getDirection(origin, currentTargetPart.Position)
+        return oldRayNew(origin, newDirectionVector)
+    end
+    return oldRayNew(origin, direction)
+end))
+
+-- ===== 卸载函数 =====
+Library:OnUnload(function()
+    FOVCircleGui:Destroy()
+    if IndependentPanelGui then IndependentPanelGui:Destroy() end
+    if currentHighlight then currentHighlight:Destroy() end
+    if transparencyLoopConnection then
+        transparencyLoopConnection:Disconnect(); transparencyLoopConnection = nil; restoreCharacterAppearance()
+    end
+    if SensoryESPInstance then pcall(function() SensoryESPInstance:Unload() end); SensoryESPInstance = nil end
+    if MobileTriggerGui then MobileTriggerGui:Destroy() end
+    if MobileBhopGui then MobileBhopGui:Destroy() end
+    if MobileAimlockGui then MobileAimlockGui:Destroy() end
+    if RadarGui then RadarGui:Destroy() end
+    if AARenderConnection then AARenderConnection:Disconnect() end
+    if DesyncRenderConnection then DesyncRenderConnection:Disconnect() end
+    if BhopConnection then BhopConnection:Disconnect() end
+    if getgenv().CleanBoneESP then getgenv().CleanBoneESP() end
+    hideAllVisuals()
+    oldNamecall:UnHook()
+    oldIndex:UnHook()
+    oldRayNew:UnHook()
+end)
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+SaveManager:SetFolder("UniversalSilentAim/Configs")
+
+SaveManager:BuildConfigSection(Tabs["UI Settings"])
+ThemeManager:ApplyToTab(Tabs["UI Settings"])
+
+SaveManager:LoadAutoloadConfig()
