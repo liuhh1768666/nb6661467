@@ -1111,7 +1111,7 @@ ExtrasBox:AddDropdown('HitSound', { Text = '击中音效', Default = '关闭', V
 ExtrasBox:AddToggle("ShowTracerToggle", { Text = "显示追踪线", Default = SilentAimSettings.ShowTracer }):AddColorPicker("TracerColorPicker", { Default = Color3.fromRGB(255, 255, 0), Title = "追踪线颜色" })
 ExtrasBox:AddDropdown("TracerPositionDropdown", {
     Text = "追踪线位置",
-    Default = "中间下面",
+    Default = "中间",
     Values = {"中间", "中间下面"}
 })
 Toggles.ShowTracerToggle:OnChanged(function(Value) SilentAimSettings.ShowTracer = Value end)
