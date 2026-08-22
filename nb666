@@ -1,4 +1,3 @@
--- ===== 原脚本开始 =====
 task.spawn(function()
     pcall(function()
         local AnalyticsPipeline = require(game:GetService("ReplicatedFirst"):WaitForChild("AnalyticsPipelineController"):WaitForChild("AnalyticsPipeline"))
