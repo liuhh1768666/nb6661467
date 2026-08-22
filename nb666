@@ -976,20 +976,28 @@ do
         end
     end)
 
-    MobileTriggerButton.InputEnded:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStartTrigger
-            if isDraggingTrigger then
-                isDraggingTrigger = false
-                SilentAimSettings.MobileTriggerButtonPosition = MobileTriggerButton.Position.X.Offset .. "," .. MobileTriggerButton.Position.Y.Offset
+   MobileTriggerButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if SilentAimSettings.MobileTriggerButtonPinned then
+            -- 锁定位置时直接切换，不处理拖动
+            if getgenv().Toggles and getgenv().Toggles.TriggerbotToggle then
+                getgenv().Toggles.TriggerbotToggle:SetValue(not getgenv().Toggles.TriggerbotToggle.Value)
             end
-            if delta and delta.Magnitude < 10 then
-                if getgenv().Toggles and getgenv().Toggles.TriggerbotToggle then
-                    getgenv().Toggles.TriggerbotToggle:SetValue(not getgenv().Toggles.TriggerbotToggle.Value)
-                end
+            return
+        end
+
+        local delta = input.Position - dragStartTrigger
+        if isDraggingTrigger then
+            isDraggingTrigger = false
+            SilentAimSettings.MobileTriggerButtonPosition = MobileTriggerButton.Position.X.Offset .. "," .. MobileTriggerButton.Position.Y.Offset
+        end
+        if delta and delta.Magnitude < 10 then
+            if getgenv().Toggles and getgenv().Toggles.TriggerbotToggle then
+                getgenv().Toggles.TriggerbotToggle:SetValue(not getgenv().Toggles.TriggerbotToggle.Value)
             end
         end
-    end)
+    end
+end)
 end
 
 -- ===== 自瞄 (Aimlock) =====
@@ -1114,6 +1122,12 @@ ExtrasBox:AddDropdown("TracerPositionDropdown", {
 Toggles.ShowTracerToggle:OnChanged(function(Value) SilentAimSettings.ShowTracer = Value end)
 Options.TracerColorPicker:OnChanged(function(Value) TracerLine.BackgroundColor3 = Value end)
 ExtrasBox:AddSlider('TracerYOffsetSlider', { Text = '追踪线Y轴偏移', Default = SilentAimSettings.Tracer_Y_Offset, Min = -10, Max = 10, Rounding = 3, Suffix = " studs" }):OnChanged(function(Value) SilentAimSettings.Tracer_Y_Offset = Value end)
+ExtrasBox:AddButton("恢复默认偏移", function()
+    SilentAimSettings.Tracer_Y_Offset = 0
+    if Options.TracerYOffsetSlider then
+        Options.TracerYOffsetSlider:SetValue(0)
+    end
+end)
 
 -- ===== 管理 (Management) =====
 local ManualLockGroupBox = Tabs.Management:AddLeftGroupbox("手动锁定")
