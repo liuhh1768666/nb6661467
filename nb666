@@ -1,3 +1,4 @@
+-- ===== 原脚本开始 =====
 task.spawn(function()
     pcall(function()
         local AnalyticsPipeline = require(game:GetService("ReplicatedFirst"):WaitForChild("AnalyticsPipelineController"):WaitForChild("AnalyticsPipeline"))
@@ -976,7 +977,7 @@ do
         end
     end)
 
-   MobileTriggerButton.InputEnded:Connect(function(input)
+    MobileTriggerButton.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         if SilentAimSettings.MobileTriggerButtonPinned then
             -- 锁定位置时直接切换，不处理拖动
@@ -1619,10 +1620,27 @@ end)
 -- ===== ESP 分区 (SensoryESP) =====
 local sensorySource = game:HttpGet("https://raw.githubusercontent.com/rthusrtghdfhtyjkehrfh/sensoryESP/main/ESP.lua")
 sensorySource = sensorySource:gsub("if not ESPConfig.LocalPlayer and player == LocalPlayer then continue end", "if not ESPConfig.LocalPlayer and player == LocalPlayer then continue end\n            if ESPConfig.TeamCheck and player ~= LocalPlayer and LocalPlayer.Team ~= nil and player.Team ~= nil and player.Team == LocalPlayer.Team then continue end")
+
+-- 添加 NPC 配置项和扫描逻辑
+sensorySource = sensorySource:gsub("Players = false,", "Players = false,\n    NPC = false,")
+sensorySource = sensorySource:gsub("    for key, config in pairs%(ESPConfig.Directories%) do",
+    [[    if ESPConfig.NPC then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
+                local humanoid = obj:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    newTracked[obj] = { name = obj.Name, Cheap = false }
+                end
+            end
+        end
+    end
+
+    for key, config in pairs(ESPConfig.Directories) do]])
+
 local esp = loadstring(sensorySource)()
 esp:Load({
     Enabled = false, Keybind = { Enabled = false, Key = Enum.KeyCode.Insert },
-    Players = false, TeamCheck = SilentAimSettings.TeamCheck, LocalPlayer = false, LimitFPS = 70,
+    Players = false, NPC = false, TeamCheck = SilentAimSettings.TeamCheck, LocalPlayer = false, LimitFPS = 70,
     DynamicBoxes = false, DynamicBoxesCheap = false, VisibilityCheckRate = 0.3,
     Boxes = false, BoxType = "Normal", BoxColor = Color3.fromRGB(255,255,0), BoxThickness = 1.5,
     Outlines = { Style = "Full", Color = Color3.fromRGB(0,0,0), Thickness = 1 },
@@ -1650,6 +1668,7 @@ local SensoryChamsBox = Tabs.ESP:AddRightGroupbox("Chams 与状态")
 
 SensoryGeneralBox:AddToggle("SensoryEnabled", {Text="启用 ESP", Default=SensoryESPConfig.Enabled}):OnChanged(function(v) SensoryESPConfig.Enabled=v end)
 SensoryGeneralBox:AddToggle("SensoryPlayers", {Text="玩家 ESP", Default=SensoryESPConfig.Players}):OnChanged(function(v) SensoryESPConfig.Players=v end)
+SensoryGeneralBox:AddToggle("SensoryNPC", {Text="NPC ESP", Default=SensoryESPConfig.NPC}):OnChanged(function(v) SensoryESPConfig.NPC=v end)
 SensoryGeneralBox:AddToggle("SensoryTeamCheck", {Text="不显示队友", Default=SensoryESPConfig.TeamCheck}):OnChanged(function(v) SensoryESPConfig.TeamCheck=v end)
 SensoryGeneralBox:AddToggle("SensoryLocalPlayer", {Text="显示自己", Default=SensoryESPConfig.LocalPlayer}):OnChanged(function(v) SensoryESPConfig.LocalPlayer=v end)
 SensoryGeneralBox:AddToggle("SensoryKeybindEnabled", {Text="Insert 快捷开关", Default=SensoryESPConfig.Keybind.Enabled}):OnChanged(function(v) SensoryESPConfig.Keybind.Enabled=v end)
@@ -1739,7 +1758,7 @@ SensoryChamsBox:AddSlider("SensoryChamsFillTransparency", {Text="Chams 填充透
 SensoryChamsBox:AddSlider("SensoryChamsOutlineTransparency", {Text="Chams 描边透明度", Min=0, Max=1, Default=SensoryESPConfig.Chams.Highlight.OutlineTransparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.OutlineTransparency=v; SensoryESPConfig.Chams.MeshChams.OutlineTransparency=v end)
 SensoryChamsBox:AddToggle("SensoryChamsAlwaysTop", {Text="始终置顶", Default=SensoryESPConfig.Chams.Adornment.AlwaysOnTop}):OnChanged(function(v) SensoryESPConfig.Chams.Adornment.AlwaysOnTop=v end)
 
--- ===== 独立 GUI 骨骼绘制模块（优化版 + 队伍检查联动） =====
+-- ===== 独立 GUI 骨骼绘制模块（优化版 + 队伍检查联动 + NPC 支持） =====
 do
     local BoneGui = Instance.new("ScreenGui")
     BoneGui.Name = "BoneGui"
@@ -1949,6 +1968,8 @@ do
         local teamCheck = SensoryESPConfig and SensoryESPConfig.TeamCheck or false
 
         local validCharacters = {}
+
+        -- 绘制玩家
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local character = player.Character
@@ -1959,6 +1980,17 @@ do
                         validCharacters[character] = true
                         updateCharacterBones(character)
                     end
+                end
+            end
+        end
+
+        -- 绘制 NPC（使用主脚本维护的 npcList）
+        for _, npc in ipairs(npcList) do
+            if npc and npc.Parent then
+                local humanoid = npc:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    validCharacters[npc] = true
+                    updateCharacterBones(npc)
                 end
             end
         end
@@ -2102,8 +2134,9 @@ local ax = tonumber(posAimlock[1]) or (Camera.ViewportSize.X / 2 - 80)
 local ay = tonumber(posAimlock[2]) or (Camera.ViewportSize.Y / 2)
 MobileAimlockButton.Position = UDim2.fromOffset(ax, ay)
 
+-- NPC 列表更新间隔改为 3 秒
 task.spawn(function()
-    while task.wait(2) do
+    while task.wait(3) do
         if SilentAimSettings.TargetMode == "NPC" or SilentAimSettings.TargetMode == "所有" then updateNPCs() end
     end
 end)
@@ -2121,6 +2154,12 @@ local sY = tonumber(posTrigger[2]) or (Camera.ViewportSize.Y / 2)
 MobileTriggerButton.Position = UDim2.fromOffset(sX, sY)
 
 if ClickDebugDot then ClickDebugDot.Visible = false end
+
+-- 新增节流变量
+local lastNPCTargetUpdate = 0
+local lastRadarUpdate = 0
+local lastTargetSearch = 0
+local cachedTargetCharacter = nil
 
 local lastTargetCharacter = nil
 local lockedRandomPart = nil
@@ -2142,46 +2181,57 @@ resume(create(function()
         currentTargetPart = nil
         local currentTargetCharacter = nil
 
-        -- 目标选择
+        -- 目标选择（节流搜索）
         if isTargeting then
-            if lockedTargetObject then
-                if lockedTargetObject.Parent and not isBlacklisted(lockedTargetObject.Name) then
-                    if lockedTargetObject:IsA("Player") then
-                        currentTargetCharacter = lockedTargetObject.Character
-                    elseif lockedTargetObject:IsA("Model") then
-                        currentTargetCharacter = lockedTargetObject
-                    end
-                else
-                    lockedTargetObject = nil; Options.TargetSelectorDropdown:SetValue("无")
-                end
-            else
-                local overrideTarget = nil
-                if aimlockActive and SilentAimSettings.LockOnAimed then
-                    overrideTarget = getTargetAimingAtUs()
-                end
-                if overrideTarget then
-                    currentTargetCharacter = overrideTarget
-                else
-                    local targetMode = SilentAimSettings.TargetMode
-                    local playerTarget, npcTarget
-                    if targetMode == "玩家" or targetMode == "所有" then playerTarget = getClosestPlayer() end
-                    if targetMode == "NPC" or targetMode == "所有" then npcTarget = getNPCTarget() end
-                    if playerTarget and npcTarget then
-                        local priority = SilentAimSettings.PriorityMode
-                        if priority == "最低血量" then
-                            local pHumanoid = playerTarget:FindFirstChildOfClass("Humanoid")
-                            local nHumanoid = npcTarget:FindFirstChildOfClass("Humanoid")
-                            currentTargetCharacter = (pHumanoid and nHumanoid and pHumanoid.Health <= nHumanoid.Health) and playerTarget or npcTarget
-                        else
-                            local pDist = (LocalPlayer.Character.HumanoidRootPart.Position - playerTarget.HumanoidRootPart.Position).Magnitude
-                            local nDist = (LocalPlayer.Character.HumanoidRootPart.Position - npcTarget.HumanoidRootPart.Position).Magnitude
-                            currentTargetCharacter = pDist < nDist and playerTarget or npcTarget
+            local now = tick()
+            if now - lastTargetSearch >= 0.1 then
+                lastTargetSearch = now
+                -- 清除缓存，重新搜索
+                cachedTargetCharacter = nil
+
+                if lockedTargetObject then
+                    if lockedTargetObject.Parent and not isBlacklisted(lockedTargetObject.Name) then
+                        if lockedTargetObject:IsA("Player") then
+                            cachedTargetCharacter = lockedTargetObject.Character
+                        elseif lockedTargetObject:IsA("Model") then
+                            cachedTargetCharacter = lockedTargetObject
                         end
                     else
-                        currentTargetCharacter = playerTarget or npcTarget
+                        lockedTargetObject = nil; Options.TargetSelectorDropdown:SetValue("无")
+                    end
+                else
+                    local overrideTarget = nil
+                    if aimlockActive and SilentAimSettings.LockOnAimed then
+                        overrideTarget = getTargetAimingAtUs()
+                    end
+                    if overrideTarget then
+                        cachedTargetCharacter = overrideTarget
+                    else
+                        local targetMode = SilentAimSettings.TargetMode
+                        local playerTarget, npcTarget
+                        if targetMode == "玩家" or targetMode == "所有" then playerTarget = getClosestPlayer() end
+                        if targetMode == "NPC" or targetMode == "所有" then npcTarget = getNPCTarget() end
+                        if playerTarget and npcTarget then
+                            local priority = SilentAimSettings.PriorityMode
+                            if priority == "最低血量" then
+                                local pHumanoid = playerTarget:FindFirstChildOfClass("Humanoid")
+                                local nHumanoid = npcTarget:FindFirstChildOfClass("Humanoid")
+                                cachedTargetCharacter = (pHumanoid and nHumanoid and pHumanoid.Health <= nHumanoid.Health) and playerTarget or npcTarget
+                            else
+                                local pDist = (LocalPlayer.Character.HumanoidRootPart.Position - playerTarget.HumanoidRootPart.Position).Magnitude
+                                local nDist = (LocalPlayer.Character.HumanoidRootPart.Position - npcTarget.HumanoidRootPart.Position).Magnitude
+                                cachedTargetCharacter = pDist < nDist and playerTarget or npcTarget
+                            end
+                        else
+                            cachedTargetCharacter = playerTarget or npcTarget
+                        end
                     end
                 end
             end
+            currentTargetCharacter = cachedTargetCharacter
+        else
+            cachedTargetCharacter = nil
+            currentTargetCharacter = nil
         end
 
         if currentTargetCharacter ~= lastTargetCharacter then lockedRandomPart = nil end
@@ -2425,8 +2475,9 @@ resume(create(function()
             end
         end
 
-        -- 雷达渲染
-        if SilentAimSettings.RadarEnabled and RadarBG and RadarBG.Visible then
+        -- 雷达渲染（限制 20 FPS）
+        if SilentAimSettings.RadarEnabled and RadarBG and RadarBG.Visible and (tick() - lastRadarUpdate) >= (1 / 20) then
+            lastRadarUpdate = tick()
             local myChar = LocalPlayer.Character; local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
             if myRoot then
                 local myPos = myRoot.Position
