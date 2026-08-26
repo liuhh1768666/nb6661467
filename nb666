@@ -45,7 +45,6 @@ local SilentAimSettings = {
     ClassName = "Universal Silent Aim",
     ToggleKey = "RightAlt",
     TeamCheck = false,
-    VisibleCheck = false,
     AdvancedWallCheck = false,
     IgnoreTransparent = false,
     TargetPart = "HumanoidRootPart",
@@ -715,7 +714,7 @@ local function getClosestPlayer()
                 local partForChecks = Character:FindFirstChild(SilentAimSettings.TargetPart) or Character:FindFirstChild("HumanoidRootPart")
                 if not partForChecks then continue end
                 -- 修改：可见性检查条件包含 AdvancedWallCheck
-                if not ((SilentAimSettings.VisibleCheck or SilentAimSettings.AdvancedWallCheck) and not isPartVisible(partForChecks, LocalPlayerCharacter.Head.Position)) then
+                if not (SilentAimSettings.AdvancedWallCheck and not isPartVisible(partForChecks, LocalPlayerCharacter.Head.Position)) then
                     local physicalDist = (localRoot.Position - partForChecks.Position).Magnitude
                     if physicalDist <= SilentAimSettings.MaxDistance then
                         if SilentAimSettings.PriorityMode == "最近的人(无FOV)" then
@@ -931,13 +930,6 @@ MainSettingsBox:AddToggle("TeamCheckToggle", {
     SilentAimSettings.TeamCheck = Value
 end)
 
-MainSettingsBox:AddToggle("VisibleCheckToggle", {
-    Text = "可见性检查",
-    Default = SilentAimSettings.VisibleCheck
-}):OnChanged(function(Value)
-    SilentAimSettings.VisibleCheck = Value
-end)
-
 MainSettingsBox:AddToggle("AdvancedWallCheckToggle", {
     Text = "高级射线墙体检测",
     Default = SilentAimSettings.AdvancedWallCheck
@@ -955,16 +947,6 @@ end)
 MainSettingsBox:AddToggle("WallbangToggle", { Text = "穿墙", Default = SilentAimSettings.Wallbang}):OnChanged(function(Value) SilentAimSettings.Wallbang = Value end)
 MainSettingsBox:AddToggle("LeakAndHitToggle", { Text = "漏打模式", Default = SilentAimSettings.LeakAndHitMode}):OnChanged(function(Value) SilentAimSettings.LeakAndHitMode = Value end)
 MainSettingsBox:AddSlider('HitChanceSlider', { Text = '命中率', Default = SilentAimSettings.HitChance, Min = 0, Max = 100, Rounding = 1, Suffix = "%" }):OnChanged(function(Value) SilentAimSettings.HitChance = Value end)
-
--- ... 后续其余代码保持不变（目标、方法、自动扳机等） ...
-
--- 注意：后续代码中 TeamCheckToggle 和 VisibleCheckToggle 已被移除，不再存在。其他功能均已适配。
-
--- （由于篇幅限制，此处省略与原文完全相同的后续部分，实际完整脚本应包含以下所有内容直到末尾）
--- 自动扳机、自瞄、视觉、管理、杂项、ESP、骨骼模块、AA/Desync/Bhop、初始化、主循环、Hook、卸载函数、保存加载等
--- 这些部分与原脚本完全一致，只需确保没有遗漏任何修改点。
-
--- 为方便复制，请将上面的修改应用到您已有的完整脚本中，或使用之前提供的完整优化版脚本，并按照本回答的修改部分进行替换。
 
 local TargetingBox = Tabs.Main:AddRightGroupbox("目标")
 TargetingBox:AddDropdown("TargetModeDropdown", { Text = "目标种类", Default = "所有", Values = {"玩家", "NPC", "所有"} }):OnChanged(function(Value) SilentAimSettings.TargetMode = Value end)
@@ -2248,9 +2230,9 @@ local ax = tonumber(posAimlock[1]) or (Camera.ViewportSize.X / 2 - 80)
 local ay = tonumber(posAimlock[2]) or (Camera.ViewportSize.Y / 2)
 MobileAimlockButton.Position = UDim2.fromOffset(ax, ay)
 
--- NPC 列表更新间隔改为 3 秒
+-- NPC 列表更新间隔改为 2 秒
 task.spawn(function()
-    while task.wait(3) do
+    while task.wait(2) do
         if SilentAimSettings.TargetMode == "NPC" or SilentAimSettings.TargetMode == "所有" then updateNPCs() end
     end
 end)
