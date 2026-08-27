@@ -1,4 +1,17 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua", true))()
+task.spawn(function()
+    pcall(function()
+        local AnalyticsPipeline = require(game:GetService("ReplicatedFirst"):WaitForChild("AnalyticsPipelineController"):WaitForChild("AnalyticsPipeline"))
+        hookfunction(AnalyticsPipeline, function() end)
+    end)
+end)
+
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Pixeluted/adoniscries/main/Source.lua", true))()
+end)
+
+if not getmetatable or not setmetatable or not type or not select or type(select(2, pcall(getmetatable, setmetatable({}, {__index = function(self, ...) while true do end end})))['__index']) ~= 'function' or not pcall or not debug or not rawget or not rawset or not pcall(rawset,{}," "," ") or not select or not getfenv or select(1, pcall(getfenv, 69)) == true or not select(2, pcall(rawget, debug, "info")) or #(((select(2, pcall(rawget, debug, "info")))(getfenv, "n")))<=1 or #(((select(2, pcall(rawget, debug, "info")))(print, "n")))<=1 or not (select(2, pcall(rawget, debug, "info")))(print, "s") == "[C]" or not (select(2, pcall(rawget, debug, "info")))(require, "s") == "[C]" or (select(2, pcall(rawget, debug, "info")))((function()end), "s") == "[C]" then
+  return REVEAL_HINT_STACK and tostring(ANTI_ENV_LOG_MESSAGE) or nil
+end
 
 if not game:IsLoaded() then
     game.Loaded:Wait()
@@ -7,37 +20,6 @@ end
 if not syn or not protectgui then
     getgenv().protectgui = function() end
 end
-
--- ===== 插入的绕过代码 =====
-task.spawn(function()
-    local x, y
-    setthreadidentity(2)
-    for i, v in getgc(true) do
-        if typeof(v) == "table" then
-            local a = rawget(v, "Detected")
-            local b = rawget(v, "Kill")
-            if typeof(a) == "function" and not x then
-                x = a
-                local o; o = hookfunction(x, function(c, f, n)
-                    if c ~= "_" then end
-                    return true
-                end)
-            end
-            if rawget(v, "Variables") and rawget(v, "Process") and typeof(b) == "function" and not y then
-                y = b
-                local o; o = hookfunction(y, function(f) end)
-            end
-        end
-    end
-    local o; o = hookfunction(getrenv().debug.info, newcclosure(function(...)
-        local a, f = ...
-        if x and a == x then
-            return coroutine.yield(coroutine.running())
-        end
-        return o(...)
-    end))
-    setthreadidentity(7)
-end)
 -- ===== 绕过结束 =====
 
 local SilentAimSettings = {
