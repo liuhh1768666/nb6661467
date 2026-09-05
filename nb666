@@ -2419,54 +2419,50 @@ resume(create(function()
             TargetIndicatorFrame.Visible = false
         end
 
-        -- 面板信息更新
-        if SilentAimSettings.TargetInfoStyle == "面板" and currentTargetCharacter then
-            local head = currentTargetCharacter:FindFirstChild("Head")
-            if head then
-                local screenPos, onScreen = getPositionOnScreen(head.Position + Vector3.new(0, 2, 0))
-                if onScreen then
-                    PanelInfoBg.Position = UDim2.fromOffset(screenPos.X, screenPos.Y - 40)
-                    PanelInfoBg.Visible = true
+-- 信息显示更新（支持面板 / 头顶 / 独立面板）
+        if currentTargetCharacter then
+            local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local targetRoot = currentTargetCharacter:FindFirstChild("HumanoidRootPart")
+            local targetHead = currentTargetCharacter:FindFirstChild("Head")
+            local targetHumanoid = currentTargetCharacter:FindFirstChildOfClass("Humanoid")
+            local dist = localRoot and targetRoot and math.floor((localRoot.Position - targetRoot.Position).Magnitude) or 0
+            local health = targetHumanoid and math.floor(targetHumanoid.Health) or 0
+            local category = getTargetCategory(currentTargetCharacter)
 
-                    if SilentAimSettings.ShowTargetName then
-                        PanelInfoTexts["Name"].Text = "名字: " .. currentTargetCharacter.Name
-                        PanelInfoTexts["Name"].Visible = true
-                    else
-                        PanelInfoTexts["Name"].Visible = false
-                    end
-                    if SilentAimSettings.ShowTargetHealth then
-                        local humanoid = currentTargetCharacter:FindFirstChildOfClass("Humanoid")
-                        local health = humanoid and math.floor(humanoid.Health) or 0
-                        PanelInfoTexts["Health"].Text = "血量: " .. health
-                        PanelInfoTexts["Health"].Visible = true
-                    else
-                        PanelInfoTexts["Health"].Visible = false
-                    end
-                    if SilentAimSettings.ShowTargetDistance then
-                        local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        local targetRoot = currentTargetCharacter:FindFirstChild("HumanoidRootPart")
-                        local dist = localRoot and targetRoot and math.floor((localRoot.Position - targetRoot.Position).Magnitude) or 0
-                        PanelInfoTexts["Distance"].Text = "距离: " .. dist
-                        PanelInfoTexts["Distance"].Visible = true
-                    else
-                        PanelInfoTexts["Distance"].Visible = false
-                    end
-                    if SilentAimSettings.ShowTargetCategory then
-                        PanelInfoTexts["Category"].Text = "类别: " .. getTargetCategory(currentTargetCharacter)
-                        PanelInfoTexts["Category"].Visible = true
-                    else
-                        PanelInfoTexts["Category"].Visible = false
-                    end
+            local nameText = "名字: " .. currentTargetCharacter.Name
+            local healthText = "血量: " .. health
+            local distanceText = "距离: " .. dist
+            local categoryText = "类别: " .. category
 
-                    local visibleCount = 0
-                    for _, v in pairs(PanelInfoTexts) do if v.Visible then visibleCount = visibleCount + 1 end end
-                    PanelInfoBg.Size = UDim2.new(0, 120, 0, visibleCount * 15 + 5)
-                    local yOffset = 0
-                    for _, name in ipairs({"Name", "Health", "Distance", "Category"}) do
-                        if PanelInfoTexts[name].Visible then
-                            PanelInfoTexts[name].Position = UDim2.new(0, 5, 0, yOffset)
-                            yOffset = yOffset + 15
+            -- 1) 面板样式
+            if SilentAimSettings.TargetInfoStyle == "面板" then
+                if targetHead then
+                    local screenPos, onScreen = getPositionOnScreen(targetHead.Position + Vector3.new(0, 2, 0))
+                    if onScreen then
+                        PanelInfoBg.Position = UDim2.fromOffset(screenPos.X, screenPos.Y - 40)
+                        PanelInfoBg.Visible = true
+
+                        PanelInfoTexts["Name"].Text = nameText
+                        PanelInfoTexts["Name"].Visible = SilentAimSettings.ShowTargetName
+                        PanelInfoTexts["Health"].Text = healthText
+                        PanelInfoTexts["Health"].Visible = SilentAimSettings.ShowTargetHealth
+                        PanelInfoTexts["Distance"].Text = distanceText
+                        PanelInfoTexts["Distance"].Visible = SilentAimSettings.ShowTargetDistance
+                        PanelInfoTexts["Category"].Text = categoryText
+                        PanelInfoTexts["Category"].Visible = SilentAimSettings.ShowTargetCategory
+
+                        local visibleCount = 0
+                        for _, v in pairs(PanelInfoTexts) do if v.Visible then visibleCount = visibleCount + 1 end end
+                        PanelInfoBg.Size = UDim2.new(0, 120, 0, visibleCount * 15 + 5)
+                        local yOffset = 0
+                        for _, name in ipairs({"Name", "Health", "Distance", "Category"}) do
+                            if PanelInfoTexts[name].Visible then
+                                PanelInfoTexts[name].Position = UDim2.new(0, 5, 0, yOffset)
+                                yOffset = yOffset + 15
+                            end
                         end
+                    else
+                        PanelInfoBg.Visible = false
                     end
                 else
                     PanelInfoBg.Visible = false
@@ -2474,8 +2470,66 @@ resume(create(function()
             else
                 PanelInfoBg.Visible = false
             end
+
+            -- 2) 头顶样式
+            if SilentAimSettings.TargetInfoStyle == "头顶" then
+                if targetHead then
+                    local screenPos, onScreen = getPositionOnScreen(targetHead.Position + Vector3.new(0, 2.5, 0))
+                    if onScreen then
+                        local yBase = screenPos.Y - 32
+                        OverheadInfoTexts["Name"].Text = nameText
+                        OverheadInfoTexts["Name"].Visible = SilentAimSettings.ShowTargetName
+                        OverheadInfoTexts["Name"].Position = UDim2.fromOffset(screenPos.X - 75, yBase)
+
+                        OverheadInfoTexts["Health"].Text = healthText
+                        OverheadInfoTexts["Health"].Visible = SilentAimSettings.ShowTargetHealth
+                        OverheadInfoTexts["Health"].Position = UDim2.fromOffset(screenPos.X - 75, yBase + 16)
+
+                        OverheadInfoTexts["Distance"].Text = distanceText
+                        OverheadInfoTexts["Distance"].Visible = SilentAimSettings.ShowTargetDistance
+                        OverheadInfoTexts["Distance"].Position = UDim2.fromOffset(screenPos.X - 75, yBase + 32)
+
+                        OverheadInfoTexts["Category"].Text = categoryText
+                        OverheadInfoTexts["Category"].Visible = SilentAimSettings.ShowTargetCategory
+                        OverheadInfoTexts["Category"].Position = UDim2.fromOffset(screenPos.X - 75, yBase + 48)
+                    else
+                        for _, v in pairs(OverheadInfoTexts) do v.Visible = false end
+                    end
+                else
+                    for _, v in pairs(OverheadInfoTexts) do v.Visible = false end
+                end
+            else
+                for _, v in pairs(OverheadInfoTexts) do v.Visible = false end
+            end
+
+            -- 3) 独立面板样式
+            if SilentAimSettings.TargetInfoStyle == "独立面板" then
+                IndependentPanelFrame.Visible = true
+                independent_panel_texts["Name"].Text = nameText
+                independent_panel_texts["Name"].Visible = SilentAimSettings.ShowTargetName
+                independent_panel_texts["Health"].Text = healthText
+                independent_panel_texts["Health"].Visible = SilentAimSettings.ShowTargetHealth
+                independent_panel_texts["Distance"].Text = distanceText
+                independent_panel_texts["Distance"].Visible = SilentAimSettings.ShowTargetDistance
+                independent_panel_texts["Category"].Text = categoryText
+                independent_panel_texts["Category"].Visible = SilentAimSettings.ShowTargetCategory
+
+                -- 重新排列布局
+                local yOffset = 0
+                for _, name in ipairs({"Name", "Health", "Distance", "Category"}) do
+                    if independent_panel_texts[name].Visible then
+                        independent_panel_texts[name].Position = UDim2.new(0, 5, 0, yOffset)
+                        yOffset = yOffset + 15
+                    end
+                end
+                IndependentPanelFrame.Size = UDim2.fromOffset(160, yOffset + 5)
+            else
+                IndependentPanelFrame.Visible = false
+            end
         else
             PanelInfoBg.Visible = false
+            for _, v in pairs(OverheadInfoTexts) do v.Visible = false end
+            IndependentPanelFrame.Visible = false
         end
 
         -- 自动扳机触发
