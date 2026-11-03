@@ -1801,7 +1801,7 @@ Toggles.SensoryDistance:OnChanged(function(v) SensoryESPConfig.Distance.Enabled=
 Options.SensoryDistanceColor:OnChanged(function(v) SensoryESPConfig.Distance.Color=v end)
 SensoryTextBox:AddDropdown("SensoryDistanceUnit", {Text="距离单位", Default=SensoryESPConfig.Distance.Unit, Values={"Meters","Studs"}}):OnChanged(function(v) SensoryESPConfig.Distance.Unit=v; SensoryESPConfig.Distance.Ending=v=="Meters" and "m" or " studs" end)
 
--- 新的 GUI 骨骼（替换原来的 SensorySkeleton）
+-- GUI 骨骼（单一开关 + 颜色 + 粗细；玩家骨骼联动「玩家 ESP」，NPC 骨骼联动「NPC ESP」）
 SensoryExtraBox:AddToggle("BoneEspToggle", {Text="GUI骨骼", Default=false}):AddColorPicker("BoneEspColor", {Default=Color3.fromRGB(0,255,0), Title="骨骼颜色"})
 SensoryExtraBox:AddSlider("BoneEspThickness", {Text="骨骼粗细", Min=1, Max=10, Default=2, Rounding=0})
 Toggles.BoneEspToggle:OnChanged(function(v) getgenv().BoneESPEnabled = v end)
@@ -1836,7 +1836,7 @@ SensoryChamsBox:AddSlider("SensoryChamsFillTransparency", {Text="Chams 填充透
 SensoryChamsBox:AddSlider("SensoryChamsOutlineTransparency", {Text="Chams 描边透明度", Min=0, Max=1, Default=SensoryESPConfig.Chams.Highlight.OutlineTransparency, Rounding=2}):OnChanged(function(v) SensoryESPConfig.Chams.Highlight.OutlineTransparency=v; SensoryESPConfig.Chams.MeshChams.OutlineTransparency=v end)
 SensoryChamsBox:AddToggle("SensoryChamsAlwaysTop", {Text="始终置顶", Default=SensoryESPConfig.Chams.Adornment.AlwaysOnTop}):OnChanged(function(v) SensoryESPConfig.Chams.Adornment.AlwaysOnTop=v end)
 
--- ===== 独立 GUI 骨骼绘制模块（优化版 + 队伍检查联动 + NPC 支持） =====
+-- ===== 独立 GUI 骨骼绘制模块（玩家联动「玩家 ESP」，NPC 联动「NPC ESP」） =====
 do
     local BoneGui = Instance.new("ScreenGui")
     BoneGui.Name = "BoneGui"
@@ -2047,28 +2047,46 @@ do
 
         local validCharacters = {}
 
-        -- 绘制玩家
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local character = player.Character
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health > 0 then
-                    -- 队伍检查：如果开启且是队友，则跳过绘制
-                    if not (teamCheck and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team) then
-                        validCharacters[character] = true
-                        updateCharacterBones(character)
+        -- 绘制玩家：联动 ESP 的「玩家 ESP」开关
+        local playerEspEnabled = true
+        if Options and Options.SensoryPlayers and Options.SensoryPlayers.Value ~= nil then
+            playerEspEnabled = Options.SensoryPlayers.Value
+        elseif SensoryESPConfig and SensoryESPConfig.Players ~= nil then
+            playerEspEnabled = SensoryESPConfig.Players
+        end
+
+        if playerEspEnabled then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local character = player.Character
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        -- 队伍检查：如果开启且是队友，则跳过绘制
+                        if not (teamCheck and player.Team ~= nil and LocalPlayer.Team ~= nil and player.Team == LocalPlayer.Team) then
+                            validCharacters[character] = true
+                            updateCharacterBones(character)
+                        end
                     end
                 end
             end
         end
 
-        -- 绘制 NPC（使用主脚本维护的 npcList）
-        for _, npc in ipairs(npcList) do
-            if npc and npc.Parent then
-                local humanoid = npc:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health > 0 then
-                    validCharacters[npc] = true
-                    updateCharacterBones(npc)
+        -- 绘制 NPC：联动 ESP 的「NPC ESP」开关
+        local npcEspEnabled = true
+        if Options and Options.SensoryNPC and Options.SensoryNPC.Value ~= nil then
+            npcEspEnabled = Options.SensoryNPC.Value
+        elseif SensoryESPConfig and SensoryESPConfig.NPC ~= nil then
+            npcEspEnabled = SensoryESPConfig.NPC
+        end
+
+        if npcEspEnabled then
+            for _, npc in ipairs(npcList) do
+                if npc and npc.Parent then
+                    local humanoid = npc:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        validCharacters[npc] = true
+                        updateCharacterBones(npc)
+                    end
                 end
             end
         end
